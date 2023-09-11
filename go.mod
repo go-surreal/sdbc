@@ -1,4 +1,4 @@
-module sdbc
+module github.com/go-surreal/sdbc
 
 go 1.21
 
