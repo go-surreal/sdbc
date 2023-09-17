@@ -22,7 +22,7 @@
 SDBC (**S**urreal**DB** **C**lient) is an independent Go client for the innovative [SurrealDB](https://surrealdb.com/).
 
 **DISCLAIMER**: SDBC is not the official Go client for SurrealDB but rather an independent implementation.
-You can find the repository for the official implementation [here](https://github.com/surrealdb/surrealdb-go).
+You can find the repository for the official implementation [here](https://github.com/surrealdb/surrealdb.go).
 Currently, SDBC is designed for direct use with [SOM](https://github.com/go-surreal/som).
 It's important to note that SDBC is in the early stages of development and is not yet stable or ready for production use.
 
