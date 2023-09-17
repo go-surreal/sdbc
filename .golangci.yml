@@ -1,0 +1,10 @@
+# GolangCI-Lint Configuration
+
+issues:
+  exclude-rules:
+    - path: tests/basic/gen
+      linters:
+        - unused
+    - path: tests/movie/gen
+      linters:
+        - unused
