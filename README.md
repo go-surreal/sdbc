@@ -13,8 +13,8 @@
   <a href="https://goreportcard.com/report/github.com/go-surreal/sdbc">
     <img src="https://goreportcard.com/badge/github.com/go-surreal/sdbc" alt="Go Report Card">
   </a>
-  <a href="https://github.com/go-surreal/sdbc/actions/workflows/pull_request.yml">
-    <img src="https://github.com/go-surreal/sdbc/actions/workflows/pull_request.yml/badge.svg" alt="PR">
+  <a href="https://github.com/go-surreal/sdbc/actions/workflows/tests_codecov.yml">
+    <img src="https://github.com/go-surreal/sdbc/actions/workflows/tests_codecov.yml/badge.svg" alt="Tests">
   </a>
   <a href="https://codecov.io/gh/go-surreal/sdbc" > 
     <img src="https://codecov.io/gh/go-surreal/sdbc/graph/badge.svg?token=AMR12YX5XU" alt="Codecov"/> 
