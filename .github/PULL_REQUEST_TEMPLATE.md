@@ -20,4 +20,4 @@ Please link them for easy reference.
 
 ## Checklist
 
-- [ ] I have read the [Contributing Guidelines](https://github.com/go-surreal/som/blob/main/CONTRIBUTING.md).
+- [ ] I have read the [Contributing Guidelines](https://github.com/go-surreal/sdbc/blob/main/CONTRIBUTING.md).
