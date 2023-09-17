@@ -36,9 +36,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: SurrealDB version
-      description: Copy and paste the output of `surreal version`
-      placeholder: surreal 0.0.0 for macOS on aarch64
+      label: SDBC version
+      description: Please make sure to test using the latest version of SDBC.
+      placeholder: sdbc v0.0.0
     validations:
       required: true
   - type: input
@@ -53,7 +53,7 @@ body:
     id: check
     attributes:
       label: Is there an existing issue for this?
-      description: Please search [our issues](https://github.com/surrealdb/surrealdb/issues) to see if this bug already exists.
+      description: Please search [our issues](https://github.com/go-surreal/sdbc/issues) to see if this bug already exists.
       options:
         - label: I have searched the existing issues
           required: true
@@ -61,7 +61,7 @@ body:
     id: terms
     attributes:
       label: Code of Conduct
-      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/surrealdb/surrealdb)
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/go-surreal/sdbc/blob/master/CODE_OF_CONDUCT.md)
       options:
         - label: I agree to follow this project's Code of Conduct
           required: true

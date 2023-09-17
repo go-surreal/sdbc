@@ -1,7 +1,7 @@
 <br>
 
 <div align="center">
-    <h3>SDBC - An independent SurrealDB client for Go</h3>
+    <h1>SDBC - an independent SurrealDB client for Go</h1>
 </div>
 
 <hr />
@@ -19,38 +19,89 @@
   <img src="https://img.shields.io/github/contributors/go-surreal/sdbc" alt="Contributors">
 </p>
 
-SDBC (**S**urreal**DB** **C**lient) is - as the name somewhat hints - a native Go client for the awesome [SurrealDB](https://surrealdb.com/).
+SDBC (**S**urreal**DB** **C**lient) is an independent Go client for the innovative [SurrealDB](https://surrealdb.com/).
 
-DISCLAIMER: This is **NOT** the official client for Go, but an independent implementation.
+**DISCLAIMER**: SDBC is not the official Go client for SurrealDB but rather an independent implementation.
 You can find the repository for the official implementation [here](https://github.com/surrealdb/surrealdb-go).
-Currently, SDBC is only meant for direct use with [SOM](https://github.com/go-surreal/som).
-In general, it is in a very early stage of development and cannot be considered stable or ready for production use.
+Currently, SDBC is designed for direct use with [SOM](https://github.com/go-surreal/som).
+It's important to note that SDBC is in the early stages of development and is not yet stable or ready for production use.
 
 ## What is SurrealDB?
 
-SurrealDB is a relatively new database approach.
-It provides a SQL-style query language with real-time queries and highly-efficient related data retrieval.
-Both schemafull and schemaless handling of the data is possible.
+SurrealDB is a cutting-edge database system that offers a SQL-style query language with real-time queries  
+and efficient related data retrieval. It supports both schema-full and schema-less data handling.
+With its full graph database functionality, SurrealDB enables advanced querying and analysis by allowing 
+records (or vertices) to be connected with edges, each with its own properties and metadata. 
+This facilitates multi-table, multi-depth document retrieval without complex JOINs, all within the database.
 
-With full graph database functionality, SurrealDB enables more advanced querying and analysis.
-Records (or vertices) can be connected to one another with edges, each with its own record properties and metadata.
-Simple extensions to traditional SQL queries allow for multi-table, multi-depth document retrieval, efficiently
-in the database, without the use of complicated JOINs and without bringing the data down to the client.
-
-*(Information extracted from the [official homepage]((https://surrealdb.com)))*
+*(Information extracted from the [official homepage](https://surrealdb.com))*.
 
 ## Why is SDBC needed instead of the official client?
 
-- The official go client for SurrealDB is not yet in a good state to work with
-- There are a few inconsistencies in the codebase, e.g. the `url` param for the `New` function is completely unused
-- It is missing a few important features (especially now that 1.0.0 is released)
-- The SurrealDB team currently has more pressing topics to work on than the go client
-- In the future the official client might be dependent on a base C/Rust driver which might require CGO. This custom client will stay 100% pure Go.
-- It was (and still is) fun to write such a client myself 😉
+- The official Go client for SurrealDB is currently not in a really usable state.
+- Inconsistencies exist in the codebase, such as the unused `url` parameter in the `New` function.
+- It lacks essential features, particularly after the 1.0.0 release of SurrealDB.
+- The SurrealDB team has other priorities, and it seems as if they are currently not actively maintaining the Go client.
+- Future versions of the official client may require CGO for direct bindings to an underlying driver, whereas SDBC remains pure Go.
+- Writing this custom client was and is an enjoyable endeavor 😉
 
-It would definitely make sense to switch back to the official client once it is stable, actively maintained and supports all features required by SOM.
-Furthermore, it should stay pure Go and not require CGO. Otherwise, the custom implementation will stay.
+SDBC is a practical choice until the official client becomes stable, actively maintained, and supports
+all the features required by SOM. It also maintains purity in Go and avoids CGO dependencies.
 
-## Table of contents
+It is still open whether this project will be maintained after the official client becomes stable.
 
-tbd.
+## Table of Contents
+
+- [Getting Started](#getting-started)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Getting Started
+
+### Installation
+
+To install SDBC, run the following command:
+
+```bash
+go get github.com/go-surreal/sdbc
+```
+
+### Usage
+
+To use SDBC, import it in your Go code:
+
+```go
+import (
+	"github.com/go-surreal/sdbc"
+)
+```
+
+Then, create a new client:
+
+```go
+func main() {
+	client, err := sdbc.NewClient(ctx, sdbc.Config{
+		Address:   "ws://localhost:8000/rpc", 
+		Username:  "root", 
+		Password:  "root", 
+		Namespace: "test",
+		Database:  "test",
+	}
+	
+	if err != nil {
+        log.Fatal(err)
+    }
+		
+    // ...
+}
+```
+
+## Contributing
+
+We welcome contributions! If you'd like to contribute to SDBC, please read our
+[Contributing Guidelines](https://github.com/go-surreal/sdbc/blob/main/CONTRIBUTING.md) 
+for instructions on how to get started.
+
+## License
+
+SDBC is licensed under the [MIT License](LICENSE).

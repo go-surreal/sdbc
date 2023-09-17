@@ -1,134 +1,96 @@
-# Contributing
+# Contributing to sdbc
 
-We would love for you to contribute to **sdbc** and help make it better!
-We want contributions to be fun, enjoyable, and educational for anyone and everyone.
-All contributions are welcome, including features, bugfixes, and documentation changes.
+Welcome to the **sdbc** project on GitHub! We appreciate your interest in contributing to our project. 
+Whether you're a developer, designer, tester, or just an enthusiastic user, there are many ways to 
+contribute to sdbc, and we're glad to have you on board.
 
-## How to start
+Before you get started, please take a moment to review this document as it outlines some guidelines and expectations
+for contributors. These guidelines help maintain a welcoming and productive open-source community.
 
-tbd.
+## Table of Contents
 
-## Code of conduct
+1. [Code of Conduct](#code-of-conduct)
+2. [How Can I Contribute?](#how-can-i-contribute)
+   - [Reporting Bugs](#reporting-bugs)
+   - [Suggesting Enhancements](#suggesting-enhancements)
+   - [Submitting Pull Requests](#submitting-pull-requests)
+   - [Documentation](#documentation)
+   - [Feedback](#feedback)
+3. [Getting Started](#getting-started)
+4. [Development Setup](#development-setup)
+5. [Building and Testing](#building-and-testing)
+6. [Code Style](#code-style)
+7. [Commit Guidelines](#commit-guidelines)
+8. [License](#license)
 
-Help us keep sdbc open and inclusive. Please read and follow our [Code of Conduct](/CODE_OF_CONDUCT.md).
+## Code of Conduct
 
-## Coding standards
+Please note that this project follows an [Open Source Code of Conduct](CODE_OF_CONDUCT.md).
+By participating in this project, you are expected to uphold this code of conduct.
+Please report any unacceptable behavior to [project maintainers](MAINTAINERS.md).
 
-- go fmt
-- golangci-lint
-- ci workflows
+## How Can I Contribute?
 
-## Performance
+There are several ways you can contribute to **sdbc**:
 
-tbd.
+### Reporting Bugs
 
-## Security and Privacy
+If you come across a bug or unexpected behavior in **sdbc**, please [open an issue](../../issues) 
+with a clear and detailed description of the problem. Include any relevant information such 
+as error messages, steps to reproduce, and your system environment.
 
-tbd.
+### Suggesting Enhancements
 
-## External dependencies
+We welcome suggestions for new features or improvements. 
+Please note that new features need to be discussed first before any code is written.
+You can [start a discussion](https://github.com/go-surreal/sdbc/discussions) to get the ball rolling.
+For other kinds of enhancements, such as documentation or code cleanup, you can
+[submit an issue](https://github.com/go-surreal/sdbc/issues) directly.
 
-Please avoid introducing new dependencies to sdbc without consulting the team.
-New dependencies can be very helpful but also introduce new security and privacy issues as well as complexity.
+### Submitting Pull Requests
 
-## Introducing new features
+If you'd like to contribute code to **sdbc**, we encourage you to submit a pull request (PR). Here's how:
 
-While it is always great to have new contributions, please acknowledge that this project tries to stay close to what an official SurrealDB client/driver would support.
-Anything that goes beyond the scope of that might be better suited for a separate project.
-For us to find the right balance, please open a question on [GitHub discussions](https://github.com/go-surreal/sdbc/discussions) with any ideas before introducing a new pull request.
-This will allow the community to have sufficient discussion about the new feature value and how it fits in the roadmap and overall vision.
+1. Fork the repository to your GitHub account.
+2. Clone the forked repository to your local machine.
+3. Create a new branch for your changes: `git checkout -b my-feature`.
+4. Make your changes, following the [code style guidelines](#code-style).
+5. Commit your changes with clear and concise messages (see [commit guidelines](#commit-guidelines)).
+6. Push your branch to your GitHub fork: `git push origin my-feature`.
+7. Create a pull request from your branch to the main **sdbc** repository.
 
-We might introduce an RFC process in the future to formalize this process.
+We'll review your PR and provide feedback. Once the changes are accepted, they will be merged into the main branch.
 
-## Submitting a pull request
+### Documentation
 
-Branch naming convention is as following
+Improvements to documentation are always appreciated. If you find errors or have suggestions for improving the documentation, please submit a PR or open an issue.
 
-`TYPE-ISSUE_ID-DESCRIPTION`
+### Feedback
 
-For example:
-```
-bugfix-548-ensure-queries-execute-sequentially
-```
+Providing feedback on existing issues and pull requests can be valuable. Your insights and testing can help improve the quality of the project.
 
-Where `TYPE` can be one of the following:
+## Getting Started
 
-- **refactor** - code change that neither fixes a bug nor adds a feature
-- **feature** - code changes that add a new feature
-- **bugfix** - code changes that fix a bug
-- **docs** - documentation only changes
-- **ci** - changes related to CI system
+Before you start contributing, make sure you have:
 
-For the initial start, fork the project and use git clone command to download the repository to your computer. A standard procedure for working on an issue would be to:
+- A GitHub account.
+- Git installed on your local machine.
+- Familiarity with Git and GitHub basics.
 
-1. Clone the `sdbc` repository and download to your computer.
-    ```bash
-    git clone https://github.com/go-surreal/sdbc
-    ```
+## Code Style
 
-   (Optional): Install [pre-commit](https://pre-commit.com/#install) to run the checks before each commit and run:
+Please follow the code style guidelines enforced by [gofmt](https://golang.org/cmd/gofmt/) and
+[our config](.golangci.yml) for [golangci-lint](https://github.com/golangci/golangci-lint).
 
-    ```bash
-    pre-commit install
-    ```
+## Commit Guidelines
 
-2. Pull all changes from the upstream `main` branch, before creating a new branch - to ensure that your `main` branch is up-to-date with the latest changes:
-    ```bash
-    git pull
-    ```
+We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for our commit messages.
+Please follow this format when making commits to make it easier to generate changelogs and understand the purpose of each commit.
 
-3. Create new branch from `main` like: `bugfix-548-ensure-queries-execute-sequentially`:
-    ```bash
-    git checkout -b "[the name of your branch]"
-    ```
+## License
 
-4. Make changes to the code, and ensure all code changes are formatted correctly:
-    ```bash
-    go fmt
-    ```
+By contributing to sdbc, you agree that your contributions will be licensed under the [MIT License](LICENSE).
+Please make sure you understand and accept the terms of this license before contributing.
 
-5. Commit your changes when finished:
-    ```bash
-    git add -A
-    git commit -m "[your commit message]"
-    ```
-
-6. Push changes to GitHub:
-    ```bash
-    git push origin "[the name of your branch]"
-    ```
-
-7. Submit your changes for review, by going to your repository on GitHub and clicking the `Compare & pull request` button.
-
-8. Ensure that you have entered a commit message which details about the changes, and what the pull request is for.
-
-9. Now submit the pull request by clicking the `Create pull request` button.
-
-10. Wait for code review and approval.
-
-11. After approval, merge your pull request.
-
-## Other Ways to Help
-
-Pull requests are great, but there are many other areas where you can help.
-
-### Feedback, bugs, and ideas
-
-tbd.
-
-### Documentation improvements
-
-tbd.
-
-### Joining the SurrealDB community
-
-Join the growing community of SurrealDB!
-
-- View the official [Blog](https://surrealdb.com/blog)
-- Follow them on [Twitter](https://twitter.com/surrealdb)
-- Connect with them on [LinkedIn](https://www.linkedin.com/company/surrealdb/)
-- Join their [Dev community](https://dev.to/surrealdb)
-- Chat live with them on [Discord](https://discord.gg/surrealdb)
-- Get involved on [Reddit](http://reddit.com/r/surrealdb/)
-- Read their blog posts on [Medium](https://medium.com/surrealdb)
-- Questions tagged #surrealdb on [StackOverflow](https://stackoverflow.com/questions/tagged/surrealdb)
+Thank you for contributing to sdbc! Your support is vital to the success of the project.
+We look forward to collaborating with you.
