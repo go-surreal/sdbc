@@ -16,6 +16,9 @@
   <a href="https://github.com/go-surreal/sdbc/actions/workflows/pull_request.yml">
     <img src="https://github.com/go-surreal/sdbc/actions/workflows/pull_request.yml/badge.svg" alt="PR">
   </a>
+  <a href="https://codecov.io/gh/go-surreal/sdbc" > 
+    <img src="https://codecov.io/gh/go-surreal/sdbc/graph/badge.svg?token=AMR12YX5XU" alt="Codecov"/> 
+  </a>
   <a href="https://discord.gg/surrealdb">
     <img src="https://img.shields.io/discord/902568124350599239?label=discord&color=5a66f6" alt="Discord">
   </a>
