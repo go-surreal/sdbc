@@ -111,11 +111,6 @@ func (c *Client) handleMessage(data []byte) {
 
 	c.logger.DebugContext(c.connCtx, "Received message.", "res", res)
 
-	if res.Error != nil {
-		c.logger.ErrorContext(c.connCtx, "Received error response.", "error", res.Error)
-		return
-	}
-
 	if res.ID == "" {
 		c.handleLiveQuery(res)
 		return
@@ -131,9 +126,14 @@ func (c *Client) handleResult(res *response) {
 		return
 	}
 
+	var err error
+	if res.Error != nil {
+		err = fmt.Errorf("(%d) %s", res.Error.Code, res.Error.Message)
+	}
+
 	select {
 
-	case outCh <- res.Result:
+	case outCh <- &output{data: res.Result, err: err}:
 		return
 
 	case <-c.connCtx.Done():

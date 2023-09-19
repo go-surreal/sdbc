@@ -37,37 +37,42 @@ func (p *bufPool) Put(b *bytes.Buffer) {
 // -- REQUESTS
 //
 
+type output struct {
+	data []byte
+	err  error
+}
+
 type requests struct {
 	store sync.Map
 }
 
-func (r *requests) prepare() (string, <-chan []byte) {
+func (r *requests) prepare() (string, <-chan *output) {
 	key := uuid.New()
-	ch := make(chan []byte)
+	ch := make(chan *output)
 
 	r.store.Store(key.String(), ch)
 
 	return key.String(), ch
 }
 
-func (r *requests) get(key string) (chan<- []byte, bool) {
+func (r *requests) get(key string) (chan<- *output, bool) {
 	val, ok := r.store.Load(key)
 	if !ok {
 		return nil, false
 	}
 
-	return val.(chan []byte), true
+	return val.(chan *output), true
 }
 
 func (r *requests) cleanup(key string) {
 	if ch, ok := r.store.LoadAndDelete(key); ok {
-		close(ch.(chan []byte))
+		close(ch.(chan *output))
 	}
 }
 
 func (r *requests) reset() {
 	r.store.Range(func(key, ch any) bool {
-		close(ch.(chan []byte))
+		close(ch.(chan *output))
 		r.store.Delete(key)
 		return true
 	})
