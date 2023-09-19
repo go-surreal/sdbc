@@ -261,7 +261,7 @@ func (c *Client) send(ctx context.Context, req request) (_ []byte, err error) {
 			return nil, fmt.Errorf("channel closed")
 		}
 
-		return res, nil
+		return res.data, res.err
 	}
 }
 
