@@ -10,11 +10,6 @@ import (
 	"nhooyr.io/websocket"
 )
 
-var (
-	ErrExpectedTextMessage = fmt.Errorf("expected message of type text (%d)", websocket.MessageText)
-	ErrResultWithError     = errors.New("result contains error")
-)
-
 func (c *Client) subscribe() {
 	resChan := make(resultChannel[[]byte])
 

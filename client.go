@@ -2,18 +2,11 @@ package sdbc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"nhooyr.io/websocket"
-)
-
-var (
-	ErrEmptyResponse               = errors.New("empty response")
-	ErrResponseNotOkay             = errors.New("response status is not OK")
-	ErrTimeoutWaitingForGoroutines = errors.New("internal goroutines did not finish in time")
 )
 
 type Client struct {

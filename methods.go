@@ -2,16 +2,9 @@ package sdbc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"nhooyr.io/websocket"
-)
-
-var (
-	ErrCouldNotSelectDatabase      = errors.New("could not select database")
-	ErrCouldNotGetLiveQueryChannel = errors.New("could not get live query channel")
-	ErrChannelClosed               = errors.New("channel closed")
 )
 
 const (
