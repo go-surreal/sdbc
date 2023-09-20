@@ -75,6 +75,9 @@ linters:
     # Gofmt checks whether code was gofmt-ed.
     - gofmt
 
+    # Gofumpt checks whether code was gofumpt-ed.
+    - gofumpt
+
     # Manage the use of 'replace', 'retract', and 'excludes' directives in go.mod.
     - gomoddirectives
 
@@ -97,6 +100,9 @@ linters:
     # Detects when assignments to existing variables are not used.
     - ineffassign
 
+    # Finds slice declarations with non-zero initial length.
+    - makezero
+
     # Finds commonly misspelled English words in comments.
     - misspell
 
@@ -105,6 +111,9 @@ linters:
 
     # Finds naked returns in functions greater than a specified function length.
     - nakedret
+
+    # Finds the code that returns nil even if it checks that the error is not nil.
+    - nilerr
 
     # Checks that there is no simultaneous return of nil error and an invalid value.
     - nilnil
@@ -127,6 +136,9 @@ linters:
     # Detects missing usage of t.Parallel() method in your Go test.
     - paralleltest
 
+    # Finds slice declarations that could potentially be pre-allocated.
+    - prealloc
+
     # Find code that shadows one of Go's predeclared identifiers.
     - predeclared
 
@@ -134,6 +146,9 @@ linters:
     # staticcheck binary. The author of staticcheck doesn't support or
     # approve the use of staticcheck as a library inside golangci-lint.
     - staticcheck
+
+    # Checks the struct tags.
+    - tagliatelle
 
     # Analyzer that detects using os.Setenv instead of t.Setenv since Go1.17.
     - tenv
@@ -143,6 +158,9 @@ linters:
 
     # Detects inappropriate usage of t.Parallel() method in your Go test codes.
     - tparallel
+
+    # Like the front-end of a Go compiler, parses and type-checks Go code.
+    - typecheck
 
     # Remove unnecessary type conversions.
     - unconvert
@@ -162,11 +180,11 @@ linters:
     # Finds wasted assignment statements.
     - wastedassign
 
+    # Checks that errors returned from external packages are wrapped.
+    - wrapcheck
+
     # Tool for detection of FIXME, TODO and other comment keywords.
     #- godox (introduce and fix later on)
-
-    # Gofumpt checks whether code was gofumpt-ed.
-    - gofumpt
 
     # Accept interfaces, return concrete types.
     #- ireturn (a pretty extreme measure, but might be worth it)
@@ -174,26 +192,11 @@ linters:
     # Reports long lines.
     #- lll (introduce and fix later on)
 
-    # Finds slice declarations with non-zero initial length.
-    - makezero
-
     # Reports deeply nested if statements.
     #- nestif (introduce and fix later on)
 
-    # Finds the code that returns nil even if it checks that the error is not nil.
-    - nilerr
-
-    # Checks the struct tags.
-    - tagliatelle
-
-    # Like the front-end of a Go compiler, parses and type-checks Go code.
-    - typecheck
-
     # Tool for detection of leading and trailing whitespace.
     #- whitespace (a pretty hard measure, but might be worth it)
-
-    # Checks that errors returned from external packages are wrapped.
-    - wrapcheck
 
     # Whitespace Linter - Forces you to use empty lines!
     #- wsl (a pretty hard measure, but might be worth it)
