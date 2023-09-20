@@ -10,6 +10,11 @@ import (
 	"nhooyr.io/websocket"
 )
 
+var (
+	ErrExpectedTextMessage = fmt.Errorf("expected message of type text (%d)", websocket.MessageText)
+	ErrResultWithError     = errors.New("result contains error")
+)
+
 func (c *Client) subscribe() {
 	resChan := make(resultChannel[[]byte])
 
@@ -54,7 +59,7 @@ func (c *Client) read(ctx context.Context) (_ []byte, err error) {
 	}
 
 	if msgType != websocket.MessageText {
-		return nil, fmt.Errorf("expected message of type text (%d), got %v", websocket.MessageText, msgType)
+		return nil, fmt.Errorf("%w, got %v", ErrExpectedTextMessage, msgType)
 	}
 
 	buff := c.buffers.Get()
@@ -129,7 +134,7 @@ func (c *Client) handleResult(res *response) {
 
 	var err error
 	if res.Error != nil {
-		err = fmt.Errorf("(%d) %s", res.Error.Code, res.Error.Message)
+		err = fmt.Errorf("%w: (%d) %s", ErrResultWithError, res.Error.Code, res.Error.Message)
 	}
 
 	select {

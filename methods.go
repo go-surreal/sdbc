@@ -2,9 +2,16 @@ package sdbc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"nhooyr.io/websocket"
+)
+
+var (
+	ErrCouldNotSelectDatabase      = errors.New("could not select database")
+	ErrCouldNotGetLiveQueryChannel = errors.New("could not get live query channel")
+	ErrChannelClosed               = errors.New("channel closed")
 )
 
 const (
@@ -61,7 +68,7 @@ func (c *Client) use(ctx context.Context, namespace, database string) error {
 	}
 
 	if string(res) != nilValue {
-		return fmt.Errorf("could not select database due to %s", string(res))
+		return fmt.Errorf("%w: %s", ErrCouldNotSelectDatabase, string(res))
 	}
 
 	return nil
@@ -106,14 +113,14 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 	}
 
 	if len(res) < 1 || res[0].Result == "" {
-		return nil, fmt.Errorf("empty response")
+		return nil, ErrEmptyResponse
 	}
 
 	liveKey := res[0].Result
 
 	liveChan, ok := c.liveQueries.get(liveKey, true)
 	if !ok {
-		return nil, fmt.Errorf("could not get live query channel")
+		return nil, ErrCouldNotGetLiveQueryChannel
 	}
 
 	c.waitGroup.Add(1)
@@ -261,7 +268,7 @@ func (c *Client) send(ctx context.Context, req request) (_ []byte, err error) {
 
 	case res, more := <-resCh:
 		if !more {
-			return nil, fmt.Errorf("channel closed")
+			return nil, ErrChannelClosed
 		}
 
 		return res.data, res.err

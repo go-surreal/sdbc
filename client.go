@@ -10,6 +10,12 @@ import (
 	"nhooyr.io/websocket"
 )
 
+var (
+	ErrEmptyResponse               = errors.New("empty response")
+	ErrResponseNotOkay             = errors.New("response status is not OK")
+	ErrTimeoutWaitingForGoroutines = errors.New("internal goroutines did not finish in time")
+)
+
 type Client struct {
 	*options
 
@@ -167,11 +173,11 @@ func (c *Client) checkBasicResponse(resp []byte) error {
 	}
 
 	if len(res) < 1 {
-		return fmt.Errorf("empty response")
+		return ErrEmptyResponse
 	}
 
 	if res[0].Status != "OK" {
-		return fmt.Errorf("response status is not OK")
+		return ErrResponseNotOkay
 	}
 
 	return nil
@@ -216,6 +222,6 @@ func (c *Client) Close() error {
 		return nil
 
 	case <-time.After(10 * time.Second):
-		return errors.New("internal goroutines did not finish in time")
+		return ErrTimeoutWaitingForGoroutines
 	}
 }
