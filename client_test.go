@@ -196,6 +196,7 @@ func TestClientLive(t *testing.T) {
 			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
 				liveResChan <- nil
 				liveErrChan <- err
+
 				return
 			}
 

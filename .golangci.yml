@@ -92,7 +92,7 @@ linters:
     - govet
 
     # An analyzer to analyze expression groups.
-    # - grouper (activate later)
+    - grouper
 
     # Detects when assignments to existing variables are not used.
     - ineffassign
@@ -110,7 +110,7 @@ linters:
     - nilnil
 
     # Checks for a new line before return and branch statements to increase code clarity.
-    # - nlreturn
+    - nlreturn
 
     # Finds sending http request without context.Context.
     - noctx
@@ -119,7 +119,7 @@ linters:
     - nolintlint
 
     # Reports all named returns.
-    # - nonamedreturns
+    - nonamedreturns
 
     # Checks for misuse of Sprintf to construct a host with port in a URL.
     - nosprintfhostport

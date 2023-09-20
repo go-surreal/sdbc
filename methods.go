@@ -240,7 +240,8 @@ type signInParams struct {
 // -- INTERNAL
 //
 
-func (c *Client) send(ctx context.Context, req request) (_ []byte, err error) {
+func (c *Client) send(ctx context.Context, req request) ([]byte, error) {
+	var err error
 	defer c.checkWebsocketConn(err)
 
 	reqID, resCh := c.requests.prepare()
@@ -250,7 +251,7 @@ func (c *Client) send(ctx context.Context, req request) (_ []byte, err error) {
 
 	c.logger.DebugContext(ctx, "Sending request.", "request", req)
 
-	if err := c.write(ctx, req); err != nil {
+	if err = c.write(ctx, req); err != nil {
 		return nil, fmt.Errorf("could not write to websocket: %w", err)
 	}
 
@@ -270,7 +271,8 @@ func (c *Client) send(ctx context.Context, req request) (_ []byte, err error) {
 
 // write writes the JSON message v to c.
 // It will reuse buffers in between calls to avoid allocations.
-func (c *Client) write(ctx context.Context, req request) (err error) {
+func (c *Client) write(ctx context.Context, req request) error {
+	var err error
 	defer c.checkWebsocketConn(err)
 
 	data, err := c.jsonMarshal(req)

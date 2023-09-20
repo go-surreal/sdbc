@@ -112,7 +112,9 @@ func (l *liveQueries) get(key string, create bool) (chan []byte, bool) {
 
 	if !ok {
 		ch := make(chan []byte)
+
 		l.store.Store(key, ch)
+
 		return ch, true
 	}
 
