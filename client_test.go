@@ -192,8 +192,7 @@ func TestClientLive(t *testing.T) {
 		for liveOut := range live {
 			var liveRes liveResponse[someModel]
 
-			err = json.Unmarshal(liveOut, &liveRes)
-			if err != nil {
+			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
 				liveResChan <- nil
 				liveErrChan <- err
 				return
