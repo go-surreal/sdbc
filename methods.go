@@ -111,7 +111,7 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 
 	liveKey := res[0].Result
 
-	ch, ok := c.liveQueries.get(liveKey, true)
+	liveChan, ok := c.liveQueries.get(liveKey, true)
 	if !ok {
 		return nil, fmt.Errorf("could not get live query channel")
 	}
@@ -130,14 +130,16 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 			c.logger.DebugContext(ctx, "Context done, closing live query channel.", "key", key)
 		}
 
+		//nolint:contextcheck // here the normal ctx is already done
 		if _, err := c.Kill(c.connCtx, key); err != nil {
+			//nolint:contextcheck // here the normal ctx is already done
 			c.logger.ErrorContext(c.connCtx, "Could not kill live query.", "key", key, "error", err)
 		}
 
 		c.liveQueries.del(key)
 	}(liveKey)
 
-	return ch, nil
+	return liveChan, nil
 }
 
 func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {

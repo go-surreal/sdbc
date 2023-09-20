@@ -17,7 +17,7 @@ type Client struct {
 	token string
 
 	conn       *websocket.Conn
-	connCtx    context.Context
+	connCtx    context.Context //nolint:containedctx // runtime context is used for websocket connection
 	connCancel context.CancelFunc
 	connMutex  sync.Mutex
 	connClosed bool
@@ -65,7 +65,7 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 	}
 
 	if err := client.init(ctx, conf); err != nil {
-		return nil, fmt.Errorf("could not initialize client: %v", err)
+		return nil, fmt.Errorf("could not initialize client: %w", err)
 	}
 
 	return client, nil
@@ -131,11 +131,11 @@ func (c *Client) checkWebsocketConn(err error) {
 
 func (c *Client) init(ctx context.Context, conf Config) error {
 	if err := c.signIn(ctx, conf.Username, conf.Password); err != nil {
-		return fmt.Errorf("could not sign in: %v", err)
+		return fmt.Errorf("could not sign in: %w", err)
 	}
 
 	if err := c.use(ctx, conf.Namespace, conf.Database); err != nil {
-		return fmt.Errorf("could not select namespace and database: %v", err)
+		return fmt.Errorf("could not select namespace and database: %w", err)
 	}
 
 	response, err := c.Query(ctx, "define namespace "+conf.Namespace, nil)
@@ -192,7 +192,7 @@ func (c *Client) Close() error {
 
 	err := c.conn.Close(websocket.StatusNormalClosure, "closing client")
 	if err != nil {
-		return fmt.Errorf("could not close websocket connection: %v", err)
+		return fmt.Errorf("could not close websocket connection: %w", err)
 	}
 
 	defer c.requests.reset()
@@ -203,16 +203,16 @@ func (c *Client) Close() error {
 
 	c.logger.Debug("Waiting for goroutines to finish.")
 
-	ch := make(chan struct{})
+	waitChan := make(chan struct{})
 
 	go func() {
-		defer close(ch)
+		defer close(waitChan)
 		c.waitGroup.Wait()
 	}()
 
 	select {
 
-	case <-ch:
+	case <-waitChan:
 		return nil
 
 	case <-time.After(10 * time.Second):

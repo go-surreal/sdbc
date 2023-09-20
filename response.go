@@ -11,13 +11,13 @@ import (
 )
 
 func (c *Client) subscribe() {
-	ch := make(resultChannel[[]byte])
+	resChan := make(resultChannel[[]byte])
 
 	c.waitGroup.Add(1)
-	go func(ch resultChannel[[]byte]) {
+	go func(resChan resultChannel[[]byte]) {
 		defer c.waitGroup.Done()
 
-		defer close(ch)
+		defer close(resChan)
 
 		for {
 			buf, err := c.read(c.connCtx)
@@ -36,11 +36,11 @@ func (c *Client) subscribe() {
 				continue
 			}
 
-			ch <- result(buf, nil)
+			resChan <- result(buf, nil)
 		}
-	}(ch)
+	}(resChan)
 
-	c.handleMessages(ch)
+	c.handleMessages(resChan)
 }
 
 // read reads a single websocket message.
@@ -48,24 +48,24 @@ func (c *Client) subscribe() {
 func (c *Client) read(ctx context.Context) (_ []byte, err error) {
 	defer c.checkWebsocketConn(err)
 
-	typ, r, err := c.conn.Reader(ctx)
+	msgType, reader, err := c.conn.Reader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get reader: %w", err)
 	}
 
-	if typ != websocket.MessageText {
-		return nil, fmt.Errorf("expected message of type text (%d), got %v", websocket.MessageText, typ)
+	if msgType != websocket.MessageText {
+		return nil, fmt.Errorf("expected message of type text (%d), got %v", websocket.MessageText, msgType)
 	}
 
-	b := c.buffers.Get()
-	defer c.buffers.Put(b)
+	buff := c.buffers.Get()
+	defer c.buffers.Put(buff)
 
-	_, err = b.ReadFrom(r)
+	_, err = buff.ReadFrom(reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read message: %w", err)
 	}
 
-	return b.Bytes(), nil
+	return buff.Bytes(), nil
 }
 
 func (c *Client) handleMessages(resultCh resultChannel[[]byte]) {
