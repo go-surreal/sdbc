@@ -3,6 +3,7 @@ package sdbc
 import (
 	"context"
 	"fmt"
+
 	"nhooyr.io/websocket"
 )
 

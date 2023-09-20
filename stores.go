@@ -2,8 +2,9 @@ package sdbc
 
 import (
 	"bytes"
-	"github.com/google/uuid"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 //

@@ -3,14 +3,15 @@ package sdbc
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
+	"os"
+	"testing"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"log/slog"
-	"os"
-	"testing"
 )
 
 const (

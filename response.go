@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"nhooyr.io/websocket"
 	"time"
+
+	"nhooyr.io/websocket"
 )
 
 func (c *Client) subscribe() {

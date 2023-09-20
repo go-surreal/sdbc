@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"nhooyr.io/websocket"
 	"sync"
 	"time"
+
+	"nhooyr.io/websocket"
 )
 
 type Client struct {
