@@ -166,7 +166,7 @@ linters:
     #- godox (introduce and fix later on)
 
     # Gofumpt checks whether code was gofumpt-ed.
-    #- gofumpt (introduce and fix later on)
+    - gofumpt
 
     # Accept interfaces, return concrete types.
     #- ireturn (a pretty extreme measure, but might be worth it)
@@ -175,28 +175,25 @@ linters:
     #- lll (introduce and fix later on)
 
     # Finds slice declarations with non-zero initial length.
-    #- makezero (?)
+    - makezero
 
     # Reports deeply nested if statements.
     #- nestif (introduce and fix later on)
 
     # Finds the code that returns nil even if it checks that the error is not nil.
-    # - nilerr (there are cases where catching an error and returning nil are valid)
-
-    # A linter that detects snake case of variable naming and function name.
-    # - nosnakecase (does not ignore test files)
+    - nilerr
 
     # Checks the struct tags.
-    #- tagliatelle (some model tags are outdated and need to be migrated first!)
+    - tagliatelle
 
     # Like the front-end of a Go compiler, parses and type-checks Go code.
-    #- typecheck (no good when used within IDE)
+    - typecheck
 
     # Tool for detection of leading and trailing whitespace.
     #- whitespace (a pretty hard measure, but might be worth it)
 
     # Checks that errors returned from external packages are wrapped.
-    #- wrapcheck (introduce and fix later on)
+    - wrapcheck
 
     # Whitespace Linter - Forces you to use empty lines!
     #- wsl (a pretty hard measure, but might be worth it)

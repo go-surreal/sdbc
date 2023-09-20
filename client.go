@@ -30,7 +30,6 @@ type Client struct {
 
 // Config is the configuration for the client.
 type Config struct {
-
 	// Address is the address of the database.
 	Address string
 

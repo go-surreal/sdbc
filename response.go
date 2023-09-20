@@ -21,7 +21,6 @@ func (c *Client) subscribe() {
 
 		for {
 			buf, err := c.read(c.connCtx)
-
 			if err != nil {
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return
