@@ -16,7 +16,6 @@ import (
 
 const (
 	surrealDBContainerVersion = "1.0.0-beta.11"
-	containerName             = "sdbd_test_surrealdb"
 	containerStartedMsg       = "Started web server on 0.0.0.0:8000"
 	surrealUser               = "root"
 	surrealPass               = "root"
@@ -33,9 +32,11 @@ func conf(endpoint string) Config {
 }
 
 func TestClient(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareDatabase(ctx, t, "test_client")
 	defer cleanup()
 
 	_, err := client.Query(ctx, "define table test schemaless", nil)
@@ -50,9 +51,11 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientCRUD(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareDatabase(ctx, t, "test_client_crud")
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -156,9 +159,11 @@ func TestClientCRUD(t *testing.T) {
 }
 
 func TestClientLive(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareDatabase(ctx, t, "test_client_live")
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -257,13 +262,11 @@ type someModel struct {
 // -- HELPER
 //
 
-func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
+func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (*Client, func()) {
 	tb.Helper()
 
-	tb.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
-
 	req := testcontainers.ContainerRequest{
-		Name:  containerName,
+		Name:  "sdbc" + containerName,
 		Image: "surrealdb/surrealdb:" + surrealDBContainerVersion,
 		Cmd: []string{
 			"start", "--auth", "--strict", "--allow-funcs",

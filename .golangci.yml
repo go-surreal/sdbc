@@ -125,7 +125,7 @@ linters:
     - nosprintfhostport
 
     # Detects missing usage of t.Parallel() method in your Go test.
-    # - paralleltest (activate soon!)
+    - paralleltest
 
     # Find code that shadows one of Go's predeclared identifiers.
     - predeclared
