@@ -50,8 +50,10 @@ func WithReadLimit(limit int64) Option {
 	}
 }
 
-type JsonMarshal func(val any) ([]byte, error)
-type JsonUnmarshal func(buf []byte, val any) error
+type (
+	JsonMarshal   func(val any) ([]byte, error)
+	JsonUnmarshal func(buf []byte, val any) error
+)
 
 func applyOptions(opts []Option) *options {
 	out := &options{

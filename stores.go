@@ -2,8 +2,9 @@ package sdbc
 
 import (
 	"bytes"
-	"github.com/google/uuid"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 //
@@ -17,20 +18,25 @@ type bufPool struct {
 // Get returns a buffer from the pool or
 // creates a new one if the pool is empty.
 func (p *bufPool) Get() *bytes.Buffer {
-	b := p.Pool.Get()
+	buf := p.Pool.Get()
 
-	if b == nil {
+	if buf == nil {
 		return &bytes.Buffer{}
 	}
 
-	return b.(*bytes.Buffer)
+	bytesBuf, ok := buf.(*bytes.Buffer)
+	if !ok {
+		return &bytes.Buffer{}
+	}
+
+	return bytesBuf
 }
 
 // Put returns a buffer into the pool.
-func (p *bufPool) Put(b *bytes.Buffer) {
-	b.Reset()
+func (p *bufPool) Put(buf *bytes.Buffer) {
+	buf.Reset()
 
-	p.Pool.Put(b)
+	p.Pool.Put(buf)
 }
 
 //
@@ -61,19 +67,30 @@ func (r *requests) get(key string) (chan<- *output, bool) {
 		return nil, false
 	}
 
-	return val.(chan *output), true
+	outChan, ok := val.(chan *output)
+	if !ok {
+		return nil, false
+	}
+
+	return outChan, true
 }
 
 func (r *requests) cleanup(key string) {
 	if ch, ok := r.store.LoadAndDelete(key); ok {
-		close(ch.(chan *output))
+		if outChan, ok := ch.(chan *output); ok {
+			close(outChan)
+		}
 	}
 }
 
 func (r *requests) reset() {
 	r.store.Range(func(key, ch any) bool {
-		close(ch.(chan *output))
+		if outChan, ok := ch.(chan *output); ok {
+			close(outChan)
+		}
+
 		r.store.Delete(key)
+
 		return true
 	})
 }
@@ -95,23 +112,36 @@ func (l *liveQueries) get(key string, create bool) (chan []byte, bool) {
 
 	if !ok {
 		ch := make(chan []byte)
+
 		l.store.Store(key, ch)
+
 		return ch, true
 	}
 
-	return val.(chan []byte), true
+	liveChan, ok := val.(chan []byte)
+	if !ok {
+		return nil, false
+	}
+
+	return liveChan, true
 }
 
 func (l *liveQueries) del(key string) {
 	if ch, ok := l.store.LoadAndDelete(key); ok {
-		close(ch.(chan []byte))
+		if liveChan, ok := ch.(chan []byte); ok {
+			close(liveChan)
+		}
 	}
 }
 
 func (l *liveQueries) reset() {
 	l.store.Range(func(key, ch any) bool {
-		close(ch.(chan []byte))
+		if liveChan, ok := ch.(chan []byte); ok {
+			close(liveChan)
+		}
+
 		l.store.Delete(key)
+
 		return true
 	})
 }
