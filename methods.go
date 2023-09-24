@@ -237,9 +237,7 @@ type signInParams struct {
 // -- INTERNAL
 //
 
-func (c *Client) send(ctx context.Context, req request) (_ []byte, err error) {
-	defer c.checkWebsocketConn(err)
-
+func (c *Client) send(ctx context.Context, req request) ([]byte, error) {
 	reqID, resCh := c.requests.prepare()
 	defer c.requests.cleanup(reqID)
 
@@ -267,19 +265,19 @@ func (c *Client) send(ctx context.Context, req request) (_ []byte, err error) {
 
 // write writes the JSON message v to c.
 // It will reuse buffers in between calls to avoid allocations.
-func (c *Client) write(ctx context.Context, req request) (err error) {
-	defer c.checkWebsocketConn(err)
-
+func (c *Client) write(ctx context.Context, req request) error {
 	data, err := c.jsonMarshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	err = c.conn.Write(ctx, websocket.MessageText, data)
-	if err != nil {
-		return fmt.Errorf("failed to write message: %w", err)
-	}
+	return c.withReconnect(func() error {
+		err := c.conn.Write(ctx, websocket.MessageText, data)
+		if err != nil {
+			return fmt.Errorf("failed to write message: %w", err)
+		}
 
-	// TODO: use Writer instead of Write to stream the message?
-	return nil
+		// TODO: use Writer instead of Write to stream the message?
+		return nil
+	})
 }
