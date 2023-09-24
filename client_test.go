@@ -316,12 +316,16 @@ func TestWebsocketReconnect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	endpoint, err = surreal.Endpoint(ctx, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Hack to apply the new endpoint to the client.
+	// Required, b/c testcontainers-go does not support restarting containers.
+	{
+		endpoint, err = surreal.Endpoint(ctx, "")
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	client.conf = conf(endpoint)
+		client.conf = conf(endpoint)
+	}
 
 	// QUERY
 
