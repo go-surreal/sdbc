@@ -23,6 +23,8 @@ const (
 	nilValue = "null"
 )
 
+var couldNotSendRequest = "could not send request: %w"
+
 // signIn is a helper method for signing in a user.
 func (c *Client) signIn(ctx context.Context, username, password string) error {
 	res, err := c.send(ctx,
@@ -57,7 +59,8 @@ func (c *Client) use(ctx context.Context, namespace, database string) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("could not send request: %w", err)
+		// https://lukas.zapletalovi.com/posts/2022/wrapping-multiple-errors/
+		return fmt.Errorf(couldNotSendRequest, err)
 	}
 
 	if string(res) != nilValue {
@@ -79,7 +82,7 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any) (
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf(couldNotSendRequest, err)
 	}
 
 	return res, nil
@@ -96,7 +99,7 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf(couldNotSendRequest, err)
 	}
 
 	var res []basicResponse[string]
@@ -152,7 +155,7 @@ func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 		},
 	)
 	if err != nil {
-		return res, fmt.Errorf("could not send request: %w", err)
+		return res, fmt.Errorf(couldNotSendRequest, err)
 	}
 
 	return res, nil
@@ -169,7 +172,7 @@ func (c *Client) Select(ctx context.Context, thing string) ([]byte, error) {
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf(couldNotSendRequest, err)
 	}
 
 	return res, nil
@@ -186,7 +189,7 @@ func (c *Client) Create(ctx context.Context, thing string, data any) ([]byte, er
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf(couldNotSendRequest, err)
 	}
 
 	return res, nil
@@ -204,7 +207,7 @@ func (c *Client) Update(ctx context.Context, thing string, data any) ([]byte, er
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf(couldNotSendRequest, err)
 	}
 
 	return res, nil
@@ -221,7 +224,7 @@ func (c *Client) Delete(ctx context.Context, thing string) ([]byte, error) {
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf(couldNotSendRequest, err)
 	}
 
 	return res, nil

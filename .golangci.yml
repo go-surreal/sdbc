@@ -142,6 +142,9 @@ linters:
     # Find code that shadows one of Go's predeclared identifiers.
     - predeclared
 
+    # Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
+    - revive
+
     # It's a set of rules from staticcheck. It's not the same thing as the
     # staticcheck binary. The author of staticcheck doesn't support or
     # approve the use of staticcheck as a library inside golangci-lint.
@@ -336,6 +339,34 @@ linters-settings:
   predeclared:
     ignore: ""
     q: false
+
+  revive:
+    # Maximum number of open files at the same time.
+    # See https://github.com/mgechev/revive#command-line-flags
+    # Defaults to unlimited.
+    max-open-files: 2048
+    # When set to false, ignores files with "GENERATED" header, similar to golint.
+    # See https://github.com/mgechev/revive#available-rules for details.
+    # Default: false
+    ignore-generated-header: true
+    # Sets the default severity.
+    # See https://github.com/mgechev/revive#configuration
+    # Default: warning
+    severity: error
+    # Enable all available rules.
+    # Default: false
+    enable-all-rules: false
+    # Sets the default failure confidence.
+    # This means that linting errors with less than 0.8 confidence will be ignored.
+    # Default: 0.8
+    confidence: 0.5
+    rules:
+      - name: add-constant
+        arguments:
+          - maxLitCount: "3"
+            allowInts: "0,1,-1"
+      - name: line-length-limit
+        arguments: [ 120 ]
 
   staticcheck:
     checks: ["*"]

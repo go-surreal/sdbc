@@ -10,6 +10,10 @@ import (
 	"nhooyr.io/websocket"
 )
 
+const (
+	logArgID = "id"
+)
+
 func (c *Client) subscribe() {
 	resChan := make(resultChannel[[]byte])
 
@@ -129,7 +133,7 @@ func (c *Client) handleMessage(data []byte) {
 func (c *Client) handleResult(res *response) {
 	outCh, ok := c.requests.get(res.ID)
 	if !ok {
-		c.logger.ErrorContext(c.connCtx, "Could not find pending request for ID.", "id", res.ID)
+		c.logger.ErrorContext(c.connCtx, "Could not find pending request for ID.", logArgID, res.ID)
 
 		return
 	}
@@ -148,7 +152,7 @@ func (c *Client) handleResult(res *response) {
 		return
 
 	case <-time.After(c.timeout):
-		c.logger.ErrorContext(c.connCtx, "Timeout while sending result to channel.", "id", res.ID)
+		c.logger.ErrorContext(c.connCtx, "Timeout while sending result to channel.", logArgID, res.ID)
 	}
 }
 
@@ -163,7 +167,7 @@ func (c *Client) handleLiveQuery(res *response) {
 
 	outCh, ok := c.liveQueries.get(rawID.ID, false)
 	if !ok {
-		c.logger.ErrorContext(c.connCtx, "Could not find live query channel.", "id", rawID.ID)
+		c.logger.ErrorContext(c.connCtx, "Could not find live query channel.", logArgID, rawID.ID)
 
 		return
 	}
@@ -177,6 +181,6 @@ func (c *Client) handleLiveQuery(res *response) {
 		return
 
 	case <-time.After(c.timeout):
-		c.logger.ErrorContext(c.connCtx, "Timeout while sending result to channel.", "id", res.ID)
+		c.logger.ErrorContext(c.connCtx, "Timeout while sending result to channel.", logArgID, res.ID)
 	}
 }
