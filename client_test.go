@@ -228,6 +228,119 @@ func TestClientLive(t *testing.T) {
 	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
 }
 
+func TestWebsocketReconnect(t *testing.T) {
+	ctx := context.Background()
+
+	// SETUP DATABASE
+
+	req := testcontainers.ContainerRequest{
+		Name:  containerName,
+		Image: "surrealdb/surrealdb:" + surrealDBContainerVersion,
+		Cmd: []string{
+			"start", "--auth", "--strict", "--allow-funcs",
+			"--user", surrealUser,
+			"--pass", surrealPass,
+			"--log", "trace", "memory",
+		},
+		ExposedPorts: []string{"8000/tcp"},
+		WaitingFor:   wait.ForLog(containerStartedMsg),
+		HostConfigModifier: func(conf *container.HostConfig) {
+			conf.AutoRemove = true
+		},
+	}
+
+	surreal, err := testcontainers.GenericContainer(ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+			Reuse:            true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// SETUP CLIENT
+
+	endpoint, err := surreal.Endpoint(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client, err := NewClient(ctx,
+		conf(endpoint),
+		WithLogger(
+			slog.New(
+				slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
+			),
+		),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// DEFINE TABLE
+
+	_, err = client.Query(ctx, "define table some schemaless", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// CREATE
+
+	modelIn := someModel{
+		Name:  "some_name",
+		Value: 42,
+		Slice: []string{"a", "b", "c"},
+	}
+
+	_, err = client.Create(ctx, "some", modelIn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// RESTART DATABASE
+
+	if err = surreal.Terminate(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	surreal, err = testcontainers.GenericContainer(ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+			Reuse:            true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	endpoint, err = surreal.Endpoint(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client.conf = conf(endpoint)
+
+	// QUERY
+
+	_, err = client.Query(ctx, "select * from some", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// CLEANUP
+
+	if err := client.Close(); err != nil {
+		t.Fatalf("failed to close client: %s", err.Error())
+	}
+
+	if err := surreal.Terminate(ctx); err != nil {
+		t.Fatalf("failed to terminate container: %s", err.Error())
+	}
+}
+
 //
 // -- TYPES
 //

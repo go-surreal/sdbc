@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"nhooyr.io/websocket"
 	"sync"
 	"time"
@@ -59,15 +60,23 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 
-	if err := client.openWebsocket(); err != nil {
-		return nil, err
-	}
-
-	if err := client.init(ctx, conf); err != nil {
-		return nil, fmt.Errorf("could not initialize client: %v", err)
+	if err := client.connect(); err != nil {
+		return nil, fmt.Errorf("could not connect to database: %w", err)
 	}
 
 	return client, nil
+}
+
+func (c *Client) connect() error {
+	if err := c.openWebsocket(); err != nil {
+		return fmt.Errorf("could not open websocket: %w", err)
+	}
+
+	if err := c.init(); err != nil {
+		return fmt.Errorf("could not initialize client: %v", err)
+	}
+
+	return nil
 }
 
 func (c *Client) openWebsocket() error {
@@ -75,17 +84,17 @@ func (c *Client) openWebsocket() error {
 	defer c.connMutex.Unlock()
 
 	// make sure the previous connection is closed
-	if c.conn != nil {
-		if err := c.conn.Close(websocket.StatusServiceRestart, "reconnect"); err != nil {
-			return fmt.Errorf("could not close websocket connection: %w", err)
-		}
-	}
+	// if c.conn != nil {
+	// 	if err := c.conn.Close(websocket.StatusServiceRestart, "reconnect"); err != nil {
+	// 		return fmt.Errorf("could not close websocket connection: %w", err)
+	// 	}
+	// }
 
 	conn, _, err := websocket.Dial(c.connCtx, c.conf.Address, &websocket.DialOptions{
 		CompressionMode: websocket.CompressionContextTakeover,
 	})
 	if err != nil {
-		return fmt.Errorf("could not open websocket connection: %w", err)
+		return fmt.Errorf("failed to dial websocket address: %w", err)
 	}
 
 	conn.SetReadLimit(c.options.readLimit)
@@ -101,43 +110,51 @@ func (c *Client) openWebsocket() error {
 	return nil
 }
 
-func (c *Client) checkWebsocketConn(err error) {
+func (c *Client) withReconnect(fn func() error) error {
+	err := fn()
 	if err == nil {
-		return
+		return nil
+	}
+
+	if c.connClosed {
+		return err
 	}
 
 	status := websocket.CloseStatus(err)
 
-	if status == -1 || status == websocket.StatusNormalClosure {
-		return
+	if !errors.Is(err, io.EOF) && (status == -1 || status == websocket.StatusNormalClosure) {
+		return err
 	}
 
 	select {
 
 	case <-c.connCtx.Done():
-		return
+		return err
 
 	default:
 		{
 			c.logger.Error("Websocket connection closed unexpectedly. Trying to reconnect.", "error", err)
 
-			if err := c.openWebsocket(); err != nil {
+			if err := c.connect(); err != nil {
 				c.logger.Error("Could not reconnect to websocket.", "error", err)
+				return err
 			}
+
+			return fn()
 		}
 	}
 }
 
-func (c *Client) init(ctx context.Context, conf Config) error {
-	if err := c.signIn(ctx, conf.Username, conf.Password); err != nil {
+func (c *Client) init() error {
+	if err := c.signIn(c.connCtx, c.conf.Username, c.conf.Password); err != nil {
 		return fmt.Errorf("could not sign in: %v", err)
 	}
 
-	if err := c.use(ctx, conf.Namespace, conf.Database); err != nil {
+	if err := c.use(c.connCtx, c.conf.Namespace, c.conf.Database); err != nil {
 		return fmt.Errorf("could not select namespace and database: %v", err)
 	}
 
-	response, err := c.Query(ctx, "define namespace "+conf.Namespace, nil)
+	response, err := c.Query(c.connCtx, "define namespace "+c.conf.Namespace, nil)
 	if err != nil {
 		return err
 	}
@@ -146,7 +163,7 @@ func (c *Client) init(ctx context.Context, conf Config) error {
 		return fmt.Errorf("could not define namespace: %w", err)
 	}
 
-	response, err = c.Query(ctx, "define database "+conf.Database, nil)
+	response, err = c.Query(c.connCtx, "define database "+c.conf.Database, nil)
 	if err != nil {
 		return err
 	}
