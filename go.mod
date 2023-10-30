@@ -3,7 +3,7 @@ module github.com/go-surreal/sdbc
 go 1.21
 
 require (
-	github.com/docker/docker v24.0.6+incompatible
+	github.com/docker/docker v24.0.7+incompatible
 	github.com/google/uuid v1.3.1
 	github.com/testcontainers/testcontainers-go v0.23.0
 	gotest.tools/v3 v3.5.0
