@@ -1,6 +1,6 @@
 module github.com/go-surreal/sdbc
 
-go 1.21
+go 1.21.9
 
 require (
 	github.com/docker/docker v24.0.6+incompatible
