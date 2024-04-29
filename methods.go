@@ -10,12 +10,13 @@ const (
 	methodSignIn = "signin"
 	methodUse    = "use"
 	methodQuery  = "query"
-	methodLive   = "live"
 	methodKill   = "kill"
 	methodUpdate = "update"
 	methodDelete = "delete"
 	methodSelect = "select"
 	methodCreate = "create"
+
+	livePrefix = "live"
 )
 
 const (
@@ -87,9 +88,9 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any) (
 func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<-chan []byte, error) {
 	raw, err := c.send(ctx,
 		request{
-			Method: methodQuery, // TODO: "live" is not yet working as a dedicated method
+			Method: methodQuery, // method "live" does not support filtering
 			Params: []any{
-				methodLive + " " + query,
+				livePrefix + " " + query,
 				vars,
 			},
 		},
