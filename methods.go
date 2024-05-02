@@ -122,14 +122,29 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		select {
 
 		case <-c.connCtx.Done():
-			// no kill needed, because the connection is already closed
+			// No kill needed, because the connection is already closed.
 			return
 
 		case <-ctx.Done():
 			c.logger.DebugContext(ctx, "Context done, closing live query channel.", "key", key)
 		}
 
-		if _, err := c.Kill(c.connCtx, key); err != nil {
+		// Find the best context to kill the live query with.
+		var killCtx context.Context
+
+		switch {
+
+		case ctx.Err() == nil:
+			killCtx = ctx
+
+		case c.connCtx.Err() == nil:
+			killCtx = c.connCtx
+
+		default:
+			killCtx = context.Background()
+		}
+
+		if _, err := c.Kill(killCtx, key); err != nil {
 			c.logger.ErrorContext(c.connCtx, "Could not kill live query.", "key", key, "error", err)
 		}
 
@@ -245,10 +260,14 @@ func (c *Client) send(ctx context.Context, req request) (_ []byte, err error) {
 
 	req.ID = reqID
 
-	c.logger.DebugContext(ctx, "Sending request.", "request", req)
+	c.logger.DebugContext(ctx, "Sending request.",
+		"id", req.ID,
+		"method", req.Method,
+		"params", req.Params,
+	)
 
 	if err := c.write(ctx, req); err != nil {
-		return nil, fmt.Errorf("could not write to websocket: %w", err)
+		return nil, fmt.Errorf("failed to write to websocket: %w", err)
 	}
 
 	select {
