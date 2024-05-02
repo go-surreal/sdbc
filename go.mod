@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/testcontainers/testcontainers-go v0.23.0
 	gotest.tools/v3 v3.5.0
-	nhooyr.io/websocket v1.8.11
+	nhooyr.io/websocket v1.8.10
 )
 
 require (
