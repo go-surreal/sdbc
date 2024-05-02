@@ -64,7 +64,7 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 	}
 
 	if err := client.init(ctx, conf); err != nil {
-		return nil, fmt.Errorf("could not initialize client: %v", err)
+		return nil, fmt.Errorf("failed to initialize client: %v", err)
 	}
 
 	return client, nil
@@ -77,7 +77,7 @@ func (c *Client) openWebsocket() error {
 	// make sure the previous connection is closed
 	if c.conn != nil {
 		if err := c.conn.Close(websocket.StatusServiceRestart, "reconnect"); err != nil {
-			return fmt.Errorf("could not close websocket connection: %w", err)
+			return fmt.Errorf("failed to close websocket connection: %w", err)
 		}
 	}
 
@@ -85,7 +85,7 @@ func (c *Client) openWebsocket() error {
 		CompressionMode: websocket.CompressionContextTakeover,
 	})
 	if err != nil {
-		return fmt.Errorf("could not open websocket connection: %w", err)
+		return fmt.Errorf("failed to open websocket connection: %w", err)
 	}
 
 	conn.SetReadLimit(c.options.readLimit)
@@ -130,11 +130,11 @@ func (c *Client) checkWebsocketConn(err error) {
 
 func (c *Client) init(ctx context.Context, conf Config) error {
 	if err := c.signIn(ctx, conf.Username, conf.Password); err != nil {
-		return fmt.Errorf("could not sign in: %v", err)
+		return fmt.Errorf("failed to sign in: %w", err)
 	}
 
 	if err := c.use(ctx, conf.Namespace, conf.Database); err != nil {
-		return fmt.Errorf("could not select namespace and database: %v", err)
+		return fmt.Errorf("failed to select namespace and database: %w", err)
 	}
 
 	response, err := c.Query(ctx, "define namespace "+conf.Namespace, nil)

@@ -109,7 +109,11 @@ func (c *Client) handleMessage(data []byte) {
 		return
 	}
 
-	c.logger.DebugContext(c.connCtx, "Received message.", "res", res)
+	c.logger.DebugContext(c.connCtx, "Received message.",
+		"id", res.ID,
+		"result", string(res.Result),
+		"error", res.Error,
+	)
 
 	if res.ID == "" {
 		c.handleLiveQuery(res)
