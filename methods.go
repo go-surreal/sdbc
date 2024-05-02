@@ -3,19 +3,23 @@ package sdbc
 import (
 	"context"
 	"fmt"
+	"golang.org/x/exp/maps"
+	"math/rand"
 	"nhooyr.io/websocket"
+	"strings"
 )
 
 const (
 	methodSignIn = "signin"
 	methodUse    = "use"
 	methodQuery  = "query"
-	methodLive   = "live"
 	methodKill   = "kill"
 	methodUpdate = "update"
 	methodDelete = "delete"
 	methodSelect = "select"
 	methodCreate = "create"
+
+	livePrefix = "live"
 )
 
 const (
@@ -84,12 +88,42 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any) (
 	return res, nil
 }
 
+// Live executes a live query request and returns a channel to receive the results.
+//
+// NOTE: SurrealDB does not yet support proper variable handling for live queries.
+// To circumvent this limitation, params are registered in the database before issuing
+// the actual live query. Those params are given the values of the variables passed to
+// this method. This way, the live query can be filtered by said params.
+// Please note that this is a workaround and may not work as expected in all cases.
+//
+// References:
+// Bug: Using variables in filters does not emit live messages (https://github.com/surrealdb/surrealdb/issues/2623)
+// Bug: LQ params should be evaluated before registering (https://github.com/surrealdb/surrealdb/issues/2641)
+// Bug: parameters do not work with live queries (https://github.com/surrealdb/surrealdb/issues/3602)
+//
+// TODO: prevent query from being more than one statement
 func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<-chan []byte, error) {
+	varPrefix := randString(32)
+
+	params := make(map[string]string, len(vars))
+
+	for key := range vars {
+		newKey := varPrefix + "_" + key
+		params[newKey] = "DEFINE PARAM $" + newKey + " VALUE $" + key
+		query = strings.ReplaceAll(query, "$"+key, "$"+newKey)
+	}
+
+	query = livePrefix + " " + query
+
+	if len(params) > 0 {
+		query = strings.Join(maps.Values(params), "; ") + "; " + query
+	}
+
 	raw, err := c.send(ctx,
 		request{
-			Method: methodQuery, // TODO: "live" is not yet working as a dedicated method
+			Method: methodQuery,
 			Params: []any{
-				methodLive + " " + query,
+				query,
 				vars,
 			},
 		},
@@ -104,11 +138,14 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		return nil, fmt.Errorf("could not unmarshal response: %w", err)
 	}
 
-	if len(res) < 1 || res[0].Result == "" {
+	// The last response contains the live key.
+	queryIndex := len(params)
+
+	if len(res) < 1 || res[queryIndex].Result == "" {
 		return nil, fmt.Errorf("empty response")
 	}
 
-	liveKey := res[0].Result
+	liveKey := res[queryIndex].Result
 
 	ch, ok := c.liveQueries.get(liveKey, true)
 	if !ok {
@@ -129,6 +166,8 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 			c.logger.DebugContext(ctx, "Context done, closing live query channel.", "key", key)
 		}
 
+		c.liveQueries.del(key)
+
 		// Find the best context to kill the live query with.
 		var killCtx context.Context
 
@@ -145,10 +184,14 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		}
 
 		if _, err := c.Kill(killCtx, key); err != nil {
-			c.logger.ErrorContext(c.connCtx, "Could not kill live query.", "key", key, "error", err)
+			c.logger.ErrorContext(killCtx, "Could not kill live query.", "key", key, "error", err)
 		}
 
-		c.liveQueries.del(key)
+		for newKey := range params {
+			if _, err := c.Query(killCtx, fmt.Sprintf("REMOVE PARAM $%s", newKey), nil); err != nil {
+				c.logger.ErrorContext(killCtx, "Could not remove param.", "key", newKey, "error", err)
+			}
+		}
 	}(liveKey)
 
 	return ch, nil
@@ -301,4 +344,20 @@ func (c *Client) write(ctx context.Context, req request) (err error) {
 
 	// TODO: use Writer instead of Write to stream the message?
 	return nil
+}
+
+//
+// -- HELPER
+//
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func randString(n int) string {
+	b := make([]byte, n)
+
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+
+	return string(b)
 }
