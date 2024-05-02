@@ -1,13 +1,13 @@
 module github.com/go-surreal/sdbc
 
-go 1.21
+go 1.21.9
 
 require (
 	github.com/docker/docker v24.0.6+incompatible
-	github.com/google/uuid v1.3.1
+	github.com/google/uuid v1.6.0
 	github.com/testcontainers/testcontainers-go v0.23.0
 	gotest.tools/v3 v3.5.0
-	nhooyr.io/websocket v1.8.7
+	nhooyr.io/websocket v1.8.10
 )
 
 require (
@@ -25,7 +25,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
-	github.com/klauspost/compress v1.16.0 // indirect
+	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/moby/patternmatcher v0.5.0 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect
