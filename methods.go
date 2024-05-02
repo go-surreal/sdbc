@@ -3,7 +3,9 @@ package sdbc
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"nhooyr.io/websocket"
+	"strings"
 )
 
 const (
@@ -85,12 +87,36 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any) (
 	return res, nil
 }
 
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
+}
+
 func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<-chan []byte, error) {
+	varPrefix := RandStringBytes(32)
+
+	var paramStatements []string
+
+	for key := range vars {
+		newKey := fmt.Sprintf("%s_%s", varPrefix, key)
+
+		paramStatements = append(paramStatements, fmt.Sprintf("DEFINE PARAM $%s VALUE $%s", newKey, key))
+
+		query = strings.ReplaceAll(query, fmt.Sprintf("$%s", key), fmt.Sprintf("$%s", newKey))
+	}
+
+	query = strings.Join(paramStatements, "; ") + "; " + livePrefix + " " + query
+
 	raw, err := c.send(ctx,
 		request{
 			Method: methodQuery, // method "live" does not support filtering
 			Params: []any{
-				livePrefix + " " + query,
+				query,
 				vars,
 			},
 		},
@@ -105,11 +131,13 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		return nil, fmt.Errorf("could not unmarshal response: %w", err)
 	}
 
-	if len(res) < 1 || res[0].Result == "" {
+	resElem := len(paramStatements)
+
+	if len(res) < 1 || res[resElem].Result == "" {
 		return nil, fmt.Errorf("empty response")
 	}
 
-	liveKey := res[0].Result
+	liveKey := res[resElem].Result
 
 	ch, ok := c.liveQueries.get(liveKey, true)
 	if !ok {
@@ -130,6 +158,8 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 			c.logger.DebugContext(ctx, "Context done, closing live query channel.", "key", key)
 		}
 
+		c.liveQueries.del(key)
+
 		// Find the best context to kill the live query with.
 		var killCtx context.Context
 
@@ -146,10 +176,16 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		}
 
 		if _, err := c.Kill(killCtx, key); err != nil {
-			c.logger.ErrorContext(c.connCtx, "Could not kill live query.", "key", key, "error", err)
+			c.logger.ErrorContext(killCtx, "Could not kill live query.", "key", key, "error", err)
 		}
 
-		c.liveQueries.del(key)
+		for key := range vars {
+			newKey := fmt.Sprintf("%s_%s", varPrefix, key)
+
+			if _, err := c.Query(killCtx, fmt.Sprintf("REMOVE PARAM $%s", newKey), nil); err != nil {
+				c.logger.ErrorContext(killCtx, "Could not remove param.", "key", newKey, "error", err)
+			}
+		}
 	}(liveKey)
 
 	return ch, nil
