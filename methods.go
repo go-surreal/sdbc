@@ -110,7 +110,11 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		query = strings.ReplaceAll(query, fmt.Sprintf("$%s", key), fmt.Sprintf("$%s", newKey))
 	}
 
-	query = strings.Join(paramStatements, "; ") + "; " + livePrefix + " " + query
+	query = livePrefix + " " + query
+
+	if len(paramStatements) > 0 {
+		query = strings.Join(paramStatements, "; ") + "; " + query
+	}
 
 	raw, err := c.send(ctx,
 		request{
