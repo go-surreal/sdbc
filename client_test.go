@@ -228,6 +228,82 @@ func TestClientLive(t *testing.T) {
 	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
 }
 
+func TestClientLiveFilter(t *testing.T) {
+	ctx := context.Background()
+
+	client, cleanup := prepareDatabase(ctx, t)
+	defer cleanup()
+
+	// DEFINE TABLE
+
+	_, err := client.Query(ctx, "define table some schemaless", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// DEFINE MODEL
+
+	modelIn := someModel{
+		Name:  "some_name",
+		Value: 42,
+		Slice: []string{"a", "b", "c"},
+	}
+
+	// LIVE QUERY
+
+	live, err := client.Live(ctx, "select * from some where name in $0", map[string]any{
+		"0": []string{"some_name", "some_other_name"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	liveResChan := make(chan *someModel)
+	liveErrChan := make(chan error)
+
+	go func() {
+		defer close(liveResChan)
+		defer close(liveErrChan)
+
+		for liveOut := range live {
+			var liveRes liveResponse[someModel]
+
+			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
+				liveResChan <- nil
+				liveErrChan <- err
+				return
+			}
+
+			liveResChan <- &liveRes.Result
+			liveErrChan <- nil
+		}
+	}()
+
+	// CREATE
+
+	res, err := client.Create(ctx, "some", modelIn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelCreate []someModel
+
+	err = json.Unmarshal(res, &modelCreate)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Check(t, is.Equal(modelIn.Name, modelCreate[0].Name))
+	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
+	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
+
+	liveRes := <-liveResChan
+	liveErr := <-liveErrChan
+
+	assert.Check(t, is.Nil(liveErr))
+	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
+}
+
 //
 // -- TYPES
 //
