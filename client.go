@@ -14,6 +14,15 @@ import (
 )
 
 const (
+	schemeHTTP  = "http"
+	schemeHTTPS = "https"
+
+	schemeWS  = "ws"
+	schemeWSS = "wss"
+
+	pathVersion   = "/version"
+	pathWebsocket = "/rpc"
+
 	versionPrefix = "surrealdb-"
 )
 
@@ -88,18 +97,17 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 }
 
 func (c *Client) readVersion() error {
-	baseURL := url.URL{
-		Scheme: "http",
+	requestURL := url.URL{
+		Scheme: schemeHTTP,
 		Host:   c.conf.Host,
+		Path:   pathVersion,
 	}
 
 	if c.conf.Secure {
-		baseURL.Scheme = "https"
+		requestURL.Scheme = schemeHTTPS
 	}
 
-	baseURL.Path = "/version"
-
-	res, err := http.Get(baseURL.String())
+	res, err := http.Get(requestURL.String())
 	if err != nil {
 		return err
 	}
@@ -125,17 +133,17 @@ func (c *Client) openWebsocket() error {
 		}
 	}
 
-	baseURL := url.URL{
-		Scheme: "ws",
+	requestURL := url.URL{
+		Scheme: schemeWS,
 		Host:   c.conf.Host,
-		Path:   "/rpc",
+		Path:   pathWebsocket,
 	}
 
 	if c.conf.Secure {
-		baseURL.Scheme = "wss"
+		requestURL.Scheme = schemeWSS
 	}
 
-	conn, _, err := websocket.Dial(c.connCtx, baseURL.String(), &websocket.DialOptions{
+	conn, _, err := websocket.Dial(c.connCtx, requestURL.String(), &websocket.DialOptions{
 		CompressionMode: websocket.CompressionContextTakeover,
 	})
 	if err != nil {
