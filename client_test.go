@@ -15,15 +15,16 @@ import (
 )
 
 const (
-	surrealDBContainerVersion = "1.0.0-beta.11"
-	containerStartedMsg       = "Started web server on 0.0.0.0:8000"
-	surrealUser               = "root"
-	surrealPass               = "root"
+	surrealDBVersion    = "1.4.2"
+	containerName       = "sdbd_test_surrealdb"
+	containerStartedMsg = "Started web server on 0.0.0.0:8000"
+	surrealUser         = "root"
+	surrealPass         = "root"
 )
 
-func conf(endpoint string) Config {
+func conf(host string) Config {
 	return Config{
-		Address:   "ws://" + endpoint + "/rpc",
+		Host:      host,
 		Username:  surrealUser,
 		Password:  surrealPass,
 		Namespace: "test",
@@ -38,6 +39,8 @@ func TestClient(t *testing.T) {
 
 	client, cleanup := prepareDatabase(ctx, t, "test_client")
 	defer cleanup()
+
+	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
 
 	_, err := client.Query(ctx, "define table test schemaless", nil)
 	if err != nil {
@@ -235,6 +238,82 @@ func TestClientLive(t *testing.T) {
 	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
 }
 
+func TestClientLiveFilter(t *testing.T) {
+	ctx := context.Background()
+
+	client, cleanup := prepareDatabase(ctx, t, "test_client_live_filter")
+	defer cleanup()
+
+	// DEFINE TABLE
+
+	_, err := client.Query(ctx, "define table some schemaless", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// DEFINE MODEL
+
+	modelIn := someModel{
+		Name:  "some_name",
+		Value: 42,
+		Slice: []string{"a", "b", "c"},
+	}
+
+	// LIVE QUERY
+
+	live, err := client.Live(ctx, "select * from some where name in $0", map[string]any{
+		"0": []string{"some_name", "some_other_name"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	liveResChan := make(chan *someModel)
+	liveErrChan := make(chan error)
+
+	go func() {
+		defer close(liveResChan)
+		defer close(liveErrChan)
+
+		for liveOut := range live {
+			var liveRes liveResponse[someModel]
+
+			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
+				liveResChan <- nil
+				liveErrChan <- err
+				return
+			}
+
+			liveResChan <- &liveRes.Result
+			liveErrChan <- nil
+		}
+	}()
+
+	// CREATE
+
+	res, err := client.Create(ctx, "some", modelIn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelCreate []someModel
+
+	err = json.Unmarshal(res, &modelCreate)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Check(t, is.Equal(modelIn.Name, modelCreate[0].Name))
+	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
+	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
+
+	liveRes := <-liveResChan
+	liveErr := <-liveErrChan
+
+	assert.Check(t, is.Nil(liveErr))
+	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
+}
+
 //
 // -- TYPES
 //
@@ -266,8 +345,8 @@ func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (
 	tb.Helper()
 
 	req := testcontainers.ContainerRequest{
-		Name:  "sdbc" + containerName,
-		Image: "surrealdb/surrealdb:" + surrealDBContainerVersion,
+		Name:  "sdbc_" + containerName,
+		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
 		Cmd: []string{
 			"start", "--auth", "--strict", "--allow-funcs",
 			"--user", surrealUser,
@@ -292,13 +371,13 @@ func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (
 		tb.Fatal(err)
 	}
 
-	endpoint, err := surreal.Endpoint(ctx, "")
+	host, err := surreal.Endpoint(ctx, "")
 	if err != nil {
 		tb.Fatal(err)
 	}
 
 	client, err := NewClient(ctx,
-		conf(endpoint),
+		conf(host),
 		WithLogger(
 			slog.New(
 				slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
