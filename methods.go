@@ -63,7 +63,6 @@ func (c *Client) use(ctx context.Context, namespace, database string) error {
 		},
 	)
 	if err != nil {
-		// https://lukas.zapletalovi.com/posts/2022/wrapping-multiple-errors/
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 
