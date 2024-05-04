@@ -14,16 +14,16 @@ import (
 )
 
 const (
-	surrealDBContainerVersion = "v1.4.2"
-	containerName             = "sdbd_test_surrealdb"
-	containerStartedMsg       = "Started web server on 0.0.0.0:8000"
-	surrealUser               = "root"
-	surrealPass               = "root"
+	surrealDBVersion    = "1.4.2"
+	containerName       = "sdbd_test_surrealdb"
+	containerStartedMsg = "Started web server on 0.0.0.0:8000"
+	surrealUser         = "root"
+	surrealPass         = "root"
 )
 
-func conf(endpoint string) Config {
+func conf(host string) Config {
 	return Config{
-		Address:   "ws://" + endpoint + "/rpc",
+		Host:      host,
 		Username:  surrealUser,
 		Password:  surrealPass,
 		Namespace: "test",
@@ -36,6 +36,8 @@ func TestClient(t *testing.T) {
 
 	client, cleanup := prepareDatabase(ctx, t)
 	defer cleanup()
+
+	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
 
 	_, err := client.Query(ctx, "define table test schemaless", nil)
 	if err != nil {
@@ -336,7 +338,7 @@ func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
 
 	req := testcontainers.ContainerRequest{
 		Name:  containerName,
-		Image: "surrealdb/surrealdb:" + surrealDBContainerVersion,
+		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
 		Cmd: []string{
 			"start", "--auth", "--strict", "--allow-funcs",
 			"--user", surrealUser,
@@ -361,13 +363,13 @@ func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
 		tb.Fatal(err)
 	}
 
-	endpoint, err := surreal.Endpoint(ctx, "")
+	host, err := surreal.Endpoint(ctx, "")
 	if err != nil {
 		tb.Fatal(err)
 	}
 
 	client, err := NewClient(ctx,
-		conf(endpoint),
+		conf(host),
 		WithLogger(
 			slog.New(
 				slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
