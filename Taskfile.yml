@@ -21,6 +21,5 @@ tasks:
   test:
     aliases: [ t ]
     desc: "Execute all go tests."
-    deps: [ gen ]
     cmds:
       - go test ./...
