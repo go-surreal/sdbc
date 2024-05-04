@@ -2,6 +2,8 @@ module github.com/go-surreal/sdbc
 
 go 1.21.9
 
+retract [v0.1.0, v0.3.0] // only the latest version is supported
+
 require (
 	github.com/docker/docker v26.1.1+incompatible
 	github.com/google/uuid v1.6.0
