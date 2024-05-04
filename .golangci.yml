@@ -70,7 +70,7 @@ linters:
     - godot
 
     # Go linter to check the errors handling expressions.
-    - goerr113
+    - err113
 
     # Gofmt checks whether code was gofmt-ed.
     - gofmt
@@ -217,7 +217,7 @@ linters:
 linters-settings:
 
   cyclop:
-    max-complexity: 15
+    max-complexity: 17
     package-average: 0.0
     skip-tests: false
 
@@ -365,6 +365,7 @@ linters-settings:
         arguments:
           - maxLitCount: "3"
             allowInts: "0,1,-1"
+            ignoreFuncs: "fmt\\.Errorf"
       - name: line-length-limit
         arguments: [ 120 ]
 

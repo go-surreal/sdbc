@@ -22,6 +22,10 @@ const (
 	surrealPass         = "root"
 )
 
+const (
+	thingSome = "some"
+)
+
 func conf(host string) Config {
 	return Config{
 		Host:      host,
@@ -72,11 +76,11 @@ func TestClientCRUD(t *testing.T) {
 
 	modelIn := someModel{
 		Name:  "some_name",
-		Value: 42,
+		Value: 42, //nolint:revive // test value
 		Slice: []string{"a", "b", "c"},
 	}
 
-	res, err := client.Create(ctx, "some", modelIn)
+	res, err := client.Create(ctx, thingSome, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +118,7 @@ func TestClientCRUD(t *testing.T) {
 
 	modelIn.Name = "some_other_name"
 
-	res, err = client.Update(ctx, "some", modelIn)
+	res, err = client.Update(ctx, thingSome, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +184,7 @@ func TestClientLive(t *testing.T) {
 
 	modelIn := someModel{
 		Name:  "some_name",
-		Value: 42,
+		Value: 42, //nolint:revive // test value
 		Slice: []string{"a", "b", "c"},
 	}
 
@@ -215,7 +219,7 @@ func TestClientLive(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, "some", modelIn)
+	res, err := client.Create(ctx, thingSome, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,6 +243,8 @@ func TestClientLive(t *testing.T) {
 }
 
 func TestClientLiveFilter(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	client, cleanup := prepareDatabase(ctx, t, "test_client_live_filter")
@@ -255,7 +261,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	modelIn := someModel{
 		Name:  "some_name",
-		Value: 42,
+		Value: 42, //nolint:revive // test value
 		Slice: []string{"a", "b", "c"},
 	}
 
@@ -281,6 +287,7 @@ func TestClientLiveFilter(t *testing.T) {
 			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
 				liveResChan <- nil
 				liveErrChan <- err
+
 				return
 			}
 
@@ -291,7 +298,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, "some", modelIn)
+	res, err := client.Create(ctx, thingSome, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}

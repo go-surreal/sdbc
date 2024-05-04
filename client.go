@@ -48,7 +48,6 @@ type Client struct {
 
 // Config is the configuration for the client.
 type Config struct {
-
 	// Host is the host address of the database.
 	// It must not contain a protocol or sub path like /rpc.
 	Host string
@@ -81,8 +80,8 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 
-	if err := client.readVersion(); err != nil {
-		return nil, fmt.Errorf("failed to read version: %v", err)
+	if err := client.readVersion(ctx); err != nil {
+		return nil, fmt.Errorf("failed to read version: %w", err)
 	}
 
 	if err := client.openWebsocket(); err != nil {
@@ -96,7 +95,7 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 	return client, nil
 }
 
-func (c *Client) readVersion() error {
+func (c *Client) readVersion(ctx context.Context) error {
 	requestURL := url.URL{
 		Scheme: schemeHTTP,
 		Host:   c.conf.Host,
@@ -107,14 +106,21 @@ func (c *Client) readVersion() error {
 		requestURL.Scheme = schemeHTTPS
 	}
 
-	res, err := http.Get(requestURL.String())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL.String(), nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create request: %w", err)
 	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+
+	defer res.Body.Close()
 
 	out, err := io.ReadAll(res.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read response: %w", err)
 	}
 
 	c.version = strings.TrimPrefix(string(out), versionPrefix)
@@ -143,6 +149,7 @@ func (c *Client) openWebsocket() error {
 		requestURL.Scheme = schemeWSS
 	}
 
+	//nolint:bodyclose // connection is closed by the client Close() method
 	conn, _, err := websocket.Dial(c.connCtx, requestURL.String(), &websocket.DialOptions{
 		CompressionMode: websocket.CompressionContextTakeover,
 	})

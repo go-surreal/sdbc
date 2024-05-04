@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+const (
+	defaultReadLimit = 1 << (10 * 2) // 1 MB
+)
+
 type options struct {
 	timeout       time.Duration
 	logger        *slog.Logger
@@ -61,7 +65,7 @@ func applyOptions(opts []Option) *options {
 		logger:        slog.New(&emptyLogHandler{}),
 		jsonMarshal:   json.Marshal,
 		jsonUnmarshal: json.Unmarshal,
-		readLimit:     1 << (10 * 2), // 1 MB
+		readLimit:     defaultReadLimit,
 	}
 
 	for _, opt := range opts {
