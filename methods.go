@@ -302,36 +302,51 @@ type signInParams struct {
 //
 
 func (c *Client) send(ctx context.Context, req request) ([]byte, error) {
-	// var err error
-	// defer c.checkWebsocketConn(err)
+	//var err error
+	//defer c.checkWebsocketConn(err)
 
-	reqID, resCh := c.requests.prepare()
-	defer c.requests.cleanup(reqID)
+	var out []byte
 
-	req.ID = reqID
+	err := c.withReconnect(func() error {
+		reqID, resCh := c.requests.prepare()
+		defer c.requests.cleanup(reqID)
 
-	c.logger.DebugContext(ctx, "Sending request.",
-		"id", req.ID,
-		"method", req.Method,
-		"params", req.Params,
-	)
+		req.ID = reqID
 
-	if err := c.write(ctx, req); err != nil {
-		return nil, fmt.Errorf("failed to write to websocket: %w", err)
-	}
+		c.logger.DebugContext(ctx, "Sending request.",
+			"id", req.ID,
+			"method", req.Method,
+			"params", req.Params,
+		)
 
-	select {
-
-	case <-ctx.Done():
-		return nil, fmt.Errorf("context done: %w", ctx.Err())
-
-	case res, more := <-resCh:
-		if !more {
-			return nil, ErrChannelClosed
+		if err := c.write(ctx, req); err != nil {
+			return fmt.Errorf("failed to write to websocket: %w", err)
 		}
 
-		return res.data, res.err
+		select {
+
+		case <-ctx.Done():
+			return fmt.Errorf("context done: %w", ctx.Err())
+
+		case res, more := <-resCh:
+			if !more {
+				return ErrChannelClosed
+			}
+
+			if res.err != nil {
+				return res.err
+			}
+
+			out = res.data
+
+			return nil
+		}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
+
+	return out, nil
 }
 
 // write writes the JSON message v to c.

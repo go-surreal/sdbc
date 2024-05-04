@@ -3,6 +3,7 @@ package sdbc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -388,17 +389,15 @@ func TestWebsocketReconnect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// RESTART DATABASE
+	// START SECOND DATABASE
 
-	if err = surreal.Terminate(ctx); err != nil {
-		t.Fatal(err)
-	}
+	req.Name = req.Name + "_2"
 
-	surreal, err = testcontainers.GenericContainer(ctx,
+	surreal2, err := testcontainers.GenericContainer(ctx,
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: req,
 			Started:          true,
-			Reuse:            true,
+			Reuse:            false,
 		},
 	)
 	if err != nil {
@@ -408,12 +407,20 @@ func TestWebsocketReconnect(t *testing.T) {
 	// Hack to apply the new endpoint to the client.
 	// Required, b/c testcontainers-go does not support restarting containers.
 	{
-		endpoint, err = surreal.Endpoint(ctx, "")
+		endpoint, err = surreal2.Endpoint(ctx, "")
 		if err != nil {
 			t.Fatal(err)
 		}
 
+		fmt.Println("new endpoint:", endpoint)
+
 		client.conf = conf(endpoint)
+	}
+
+	// TERMINATE FIRST DATABASE
+
+	if err = surreal.Terminate(ctx); err != nil {
+		t.Fatal(err)
 	}
 
 	// QUERY
