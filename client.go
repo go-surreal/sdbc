@@ -4,16 +4,34 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"nhooyr.io/websocket"
+	"strings"
 	"sync"
 	"time"
+)
+
+const (
+	schemeHTTP  = "http"
+	schemeHTTPS = "https"
+
+	schemeWS  = "ws"
+	schemeWSS = "wss"
+
+	pathVersion   = "/version"
+	pathWebsocket = "/rpc"
+
+	versionPrefix = "surrealdb-"
 )
 
 type Client struct {
 	*options
 
-	conf  Config
-	token string
+	conf    Config
+	version string
+	token   string
 
 	conn       *websocket.Conn
 	connCtx    context.Context
@@ -31,8 +49,12 @@ type Client struct {
 // Config is the configuration for the client.
 type Config struct {
 
-	// Address is the address of the database.
-	Address string
+	// Host is the host address of the database.
+	// It must not contain a protocol or sub path like /rpc.
+	Host string
+
+	// Secure indicates whether to use a secure connection (https, wss) or not.
+	Secure bool
 
 	// Username is the username to use for authentication.
 	Username string
@@ -59,6 +81,10 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 
+	if err := client.readVersion(); err != nil {
+		return nil, fmt.Errorf("failed to read version: %v", err)
+	}
+
 	if err := client.openWebsocket(); err != nil {
 		return nil, err
 	}
@@ -68,6 +94,32 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 	}
 
 	return client, nil
+}
+
+func (c *Client) readVersion() error {
+	requestURL := url.URL{
+		Scheme: schemeHTTP,
+		Host:   c.conf.Host,
+		Path:   pathVersion,
+	}
+
+	if c.conf.Secure {
+		requestURL.Scheme = schemeHTTPS
+	}
+
+	res, err := http.Get(requestURL.String())
+	if err != nil {
+		return err
+	}
+
+	out, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+
+	c.version = strings.TrimPrefix(string(out), versionPrefix)
+
+	return nil
 }
 
 func (c *Client) openWebsocket() error {
@@ -81,7 +133,17 @@ func (c *Client) openWebsocket() error {
 		}
 	}
 
-	conn, _, err := websocket.Dial(c.connCtx, c.conf.Address, &websocket.DialOptions{
+	requestURL := url.URL{
+		Scheme: schemeWS,
+		Host:   c.conf.Host,
+		Path:   pathWebsocket,
+	}
+
+	if c.conf.Secure {
+		requestURL.Scheme = schemeWSS
+	}
+
+	conn, _, err := websocket.Dial(c.connCtx, requestURL.String(), &websocket.DialOptions{
 		CompressionMode: websocket.CompressionContextTakeover,
 	})
 	if err != nil {
@@ -174,6 +236,10 @@ func (c *Client) checkBasicResponse(resp []byte) error {
 	}
 
 	return nil
+}
+
+func (c *Client) DatabaseVersion() string {
+	return c.version
 }
 
 // Close closes the client and the websocket connection.
