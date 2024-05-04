@@ -29,18 +29,6 @@ jobs:
       - name: Check Go Version
         run: go version
 
-      - name: Cache Go Modules
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-go-modules
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.OS }}-build-${{ env.cache-name }}-
-            ${{ runner.OS }}-build-
-            ${{ runner.OS }}-
-
       - name: Test
         working-directory: .
         run: go test -race -coverprofile=coverage.txt -covermode=atomic -v ./...

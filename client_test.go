@@ -3,27 +3,32 @@ package sdbc
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
+	"os"
+	"testing"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"log/slog"
-	"os"
-	"testing"
 )
 
 const (
-	surrealDBContainerVersion = "1.0.0"
-	containerName             = "sdbd_test_surrealdb"
-	containerStartedMsg       = "Started web server on 0.0.0.0:8000"
-	surrealUser               = "root"
-	surrealPass               = "root"
+	surrealDBVersion    = "1.4.2"
+	containerName       = "sdbd_test_surrealdb"
+	containerStartedMsg = "Started web server on 0.0.0.0:8000"
+	surrealUser         = "root"
+	surrealPass         = "root"
 )
 
-func conf(endpoint string) Config {
+const (
+	thingSome = "some"
+)
+
+func conf(host string) Config {
 	return Config{
-		Address:   "ws://" + endpoint + "/rpc",
+		Host:      host,
 		Username:  surrealUser,
 		Password:  surrealPass,
 		Namespace: "test",
@@ -32,10 +37,14 @@ func conf(endpoint string) Config {
 }
 
 func TestClient(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareDatabase(ctx, t, "test_client")
 	defer cleanup()
+
+	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
 
 	_, err := client.Query(ctx, "define table test schemaless", nil)
 	if err != nil {
@@ -49,9 +58,11 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientCRUD(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareDatabase(ctx, t, "test_client_crud")
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -65,11 +76,11 @@ func TestClientCRUD(t *testing.T) {
 
 	modelIn := someModel{
 		Name:  "some_name",
-		Value: 42,
+		Value: 42, //nolint:revive // test value
 		Slice: []string{"a", "b", "c"},
 	}
 
-	res, err := client.Create(ctx, "some", modelIn)
+	res, err := client.Create(ctx, thingSome, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +118,7 @@ func TestClientCRUD(t *testing.T) {
 
 	modelIn.Name = "some_other_name"
 
-	res, err = client.Update(ctx, "some", modelIn)
+	res, err = client.Update(ctx, thingSome, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,9 +166,11 @@ func TestClientCRUD(t *testing.T) {
 }
 
 func TestClientLive(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareDatabase(ctx, t, "test_client_live")
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -171,7 +184,7 @@ func TestClientLive(t *testing.T) {
 
 	modelIn := someModel{
 		Name:  "some_name",
-		Value: 42,
+		Value: 42, //nolint:revive // test value
 		Slice: []string{"a", "b", "c"},
 	}
 
@@ -195,6 +208,7 @@ func TestClientLive(t *testing.T) {
 			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
 				liveResChan <- nil
 				liveErrChan <- err
+
 				return
 			}
 
@@ -205,7 +219,86 @@ func TestClientLive(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, "some", modelIn)
+	res, err := client.Create(ctx, thingSome, modelIn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelCreate []someModel
+
+	err = json.Unmarshal(res, &modelCreate)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Check(t, is.Equal(modelIn.Name, modelCreate[0].Name))
+	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
+	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
+
+	liveRes := <-liveResChan
+	liveErr := <-liveErrChan
+
+	assert.Check(t, is.Nil(liveErr))
+	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
+}
+
+func TestClientLiveFilter(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	client, cleanup := prepareDatabase(ctx, t, "test_client_live_filter")
+	defer cleanup()
+
+	// DEFINE TABLE
+
+	_, err := client.Query(ctx, "define table some schemaless", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// DEFINE MODEL
+
+	modelIn := someModel{
+		Name:  "some_name",
+		Value: 42, //nolint:revive // test value
+		Slice: []string{"a", "b", "c"},
+	}
+
+	// LIVE QUERY
+
+	live, err := client.Live(ctx, "select * from some where name in $0", map[string]any{
+		"0": []string{"some_name", "some_other_name"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	liveResChan := make(chan *someModel)
+	liveErrChan := make(chan error)
+
+	go func() {
+		defer close(liveResChan)
+		defer close(liveErrChan)
+
+		for liveOut := range live {
+			var liveRes liveResponse[someModel]
+
+			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
+				liveResChan <- nil
+				liveErrChan <- err
+
+				return
+			}
+
+			liveResChan <- &liveRes.Result
+			liveErrChan <- nil
+		}
+	}()
+
+	// CREATE
+
+	res, err := client.Create(ctx, thingSome, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -372,12 +465,12 @@ type someModel struct {
 // -- HELPER
 //
 
-func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
-	tb.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
+func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (*Client, func()) {
+	tb.Helper()
 
 	req := testcontainers.ContainerRequest{
-		Name:  containerName,
-		Image: "surrealdb/surrealdb:" + surrealDBContainerVersion,
+		Name:  "sdbc_" + containerName,
+		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
 		Cmd: []string{
 			"start", "--auth", "--strict", "--allow-funcs",
 			"--user", surrealUser,
@@ -402,13 +495,13 @@ func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
 		tb.Fatal(err)
 	}
 
-	endpoint, err := surreal.Endpoint(ctx, "")
+	host, err := surreal.Endpoint(ctx, "")
 	if err != nil {
 		tb.Fatal(err)
 	}
 
 	client, err := NewClient(ctx,
-		conf(endpoint),
+		conf(host),
 		WithLogger(
 			slog.New(
 				slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),

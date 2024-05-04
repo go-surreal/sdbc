@@ -5,22 +5,26 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"nhooyr.io/websocket"
 	"time"
+
+	"nhooyr.io/websocket"
+)
+
+const (
+	logArgID = "id"
 )
 
 func (c *Client) subscribe() {
-	ch := make(resultChannel[[]byte])
+	resChan := make(resultChannel[[]byte])
 
 	c.waitGroup.Add(1)
-	go func(ch resultChannel[[]byte]) {
+	go func(resChan resultChannel[[]byte]) {
 		defer c.waitGroup.Done()
 
-		defer close(ch)
+		defer close(resChan)
 
 		for {
 			buf, err := c.read(c.connCtx)
-
 			if err != nil {
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return
@@ -28,18 +32,20 @@ func (c *Client) subscribe() {
 
 				if errors.Is(err, io.EOF) || websocket.CloseStatus(err) != -1 {
 					c.logger.Info("Websocket closed.")
+
 					return
 				}
 
 				c.logger.Error("Could not read from websocket.", "error", err)
+
 				continue
 			}
 
-			ch <- result(buf, nil)
+			resChan <- result(buf, nil)
 		}
-	}(ch)
+	}(resChan)
 
-	c.handleMessages(ch)
+	c.handleMessages(resChan)
 }
 
 // read reads a single websocket message.
@@ -48,31 +54,33 @@ func (c *Client) read(ctx context.Context) ([]byte, error) {
 	var reader io.Reader
 
 	err := c.withReconnect(func() error {
-		typ, r, err := c.conn.Reader(ctx)
+		//var err error
+		//defer c.checkWebsocketConn(err)
+
+		msgType, newReader, err := c.conn.Reader(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get reader: %w", err)
 		}
 
-		if typ != websocket.MessageText {
-			return fmt.Errorf("expected message of type text (%d), got %v", websocket.MessageText, typ)
+		if msgType != websocket.MessageText {
+			return fmt.Errorf("%w, got %v", ErrExpectedTextMessage, msgType)
 		}
 
-		reader = r
+		reader = newReader
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	b := c.buffers.Get()
-	defer c.buffers.Put(b)
+	buff := c.buffers.Get()
+	defer c.buffers.Put(buff)
 
-	_, err = b.ReadFrom(reader)
-	if err != nil {
+	if _, err = buff.ReadFrom(reader); err != nil {
 		return nil, fmt.Errorf("failed to read message: %w", err)
 	}
 
-	return b.Bytes(), nil
+	return buff.Bytes(), nil
 }
 
 func (c *Client) handleMessages(resultCh resultChannel[[]byte]) {
@@ -82,6 +90,7 @@ func (c *Client) handleMessages(resultCh resultChannel[[]byte]) {
 		case <-c.connCtx.Done():
 			{
 				c.logger.DebugContext(c.connCtx, "Context done. Stopping message handler.")
+
 				return
 			}
 
@@ -89,6 +98,7 @@ func (c *Client) handleMessages(resultCh resultChannel[[]byte]) {
 			{
 				if !more {
 					c.logger.DebugContext(c.connCtx, "Result channel closed. Stopping message handler.")
+
 					return
 				}
 
@@ -99,6 +109,7 @@ func (c *Client) handleMessages(resultCh resultChannel[[]byte]) {
 					data, err := result()
 					if err != nil {
 						c.logger.ErrorContext(c.connCtx, "Could not get result from channel.", "error", err)
+
 						return
 					}
 
@@ -114,13 +125,19 @@ func (c *Client) handleMessage(data []byte) {
 
 	if err := c.jsonUnmarshal(data, &res); err != nil {
 		c.logger.ErrorContext(c.connCtx, "Could not unmarshal websocket message.", "error", err)
+
 		return
 	}
 
-	c.logger.DebugContext(c.connCtx, "Received message.", "res", res)
+	c.logger.DebugContext(c.connCtx, "Received message.",
+		"id", res.ID,
+		"result", string(res.Result),
+		"error", res.Error,
+	)
 
 	if res.ID == "" {
 		c.handleLiveQuery(res)
+
 		return
 	}
 
@@ -130,13 +147,14 @@ func (c *Client) handleMessage(data []byte) {
 func (c *Client) handleResult(res *response) {
 	outCh, ok := c.requests.get(res.ID)
 	if !ok {
-		c.logger.ErrorContext(c.connCtx, "Could not find pending request for ID.", "id", res.ID)
+		c.logger.ErrorContext(c.connCtx, "Could not find pending request for ID.", logArgID, res.ID)
+
 		return
 	}
 
 	var err error
 	if res.Error != nil {
-		err = fmt.Errorf("(%d) %s", res.Error.Code, res.Error.Message)
+		err = fmt.Errorf("%w: (%d) %s", ErrResultWithError, res.Error.Code, res.Error.Message)
 	}
 
 	select {
@@ -148,7 +166,7 @@ func (c *Client) handleResult(res *response) {
 		return
 
 	case <-time.After(c.timeout):
-		c.logger.ErrorContext(c.connCtx, "Timeout while sending result to channel.", "id", res.ID)
+		c.logger.ErrorContext(c.connCtx, "Timeout while sending result to channel.", logArgID, res.ID)
 	}
 }
 
@@ -157,12 +175,14 @@ func (c *Client) handleLiveQuery(res *response) {
 
 	if err := c.jsonUnmarshal(res.Result, &rawID); err != nil {
 		c.logger.ErrorContext(c.connCtx, "Could not unmarshal websocket message.", "error", err)
+
 		return
 	}
 
 	outCh, ok := c.liveQueries.get(rawID.ID, false)
 	if !ok {
-		c.logger.ErrorContext(c.connCtx, "Could not find live query channel.", "id", rawID.ID)
+		c.logger.ErrorContext(c.connCtx, "Could not find live query channel.", logArgID, rawID.ID)
+
 		return
 	}
 
@@ -175,6 +195,6 @@ func (c *Client) handleLiveQuery(res *response) {
 		return
 
 	case <-time.After(c.timeout):
-		c.logger.ErrorContext(c.connCtx, "Timeout while sending result to channel.", "id", res.ID)
+		c.logger.ErrorContext(c.connCtx, "Timeout while sending result to channel.", logArgID, res.ID)
 	}
 }
