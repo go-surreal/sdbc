@@ -54,8 +54,8 @@ func (c *Client) read(ctx context.Context) ([]byte, error) {
 	var reader io.Reader
 
 	err := c.withReconnect(func() error {
-		//var err error
-		//defer c.checkWebsocketConn(err)
+		// var err error
+		// defer c.checkWebsocketConn(err)
 
 		msgType, newReader, err := c.conn.Reader(ctx)
 		if err != nil {
@@ -67,6 +67,7 @@ func (c *Client) read(ctx context.Context) ([]byte, error) {
 		}
 
 		reader = newReader
+
 		return nil
 	})
 	if err != nil {

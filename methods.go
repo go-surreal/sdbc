@@ -302,8 +302,8 @@ type signInParams struct {
 //
 
 func (c *Client) send(ctx context.Context, req request) ([]byte, error) {
-	//var err error
-	//defer c.checkWebsocketConn(err)
+	// var err error
+	// defer c.checkWebsocketConn(err)
 
 	reqID, resCh := c.requests.prepare()
 	defer c.requests.cleanup(reqID)
@@ -337,8 +337,8 @@ func (c *Client) send(ctx context.Context, req request) ([]byte, error) {
 // write writes the JSON message v to c.
 // It will reuse buffers in between calls to avoid allocations.
 func (c *Client) write(ctx context.Context, req request) error {
-	//var err error
-	//defer c.checkWebsocketConn(err)
+	// var err error
+	// defer c.checkWebsocketConn(err)
 
 	data, err := c.jsonMarshal(req)
 	if err != nil {

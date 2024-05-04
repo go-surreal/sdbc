@@ -22,10 +22,6 @@ const (
 	surrealPass         = "root"
 )
 
-const (
-	thingSome = "some"
-)
-
 func conf(host string) Config {
 	return Config{
 		Host:      host,
@@ -80,7 +76,7 @@ func TestClientCRUD(t *testing.T) {
 		Slice: []string{"a", "b", "c"},
 	}
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, "some", modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +114,7 @@ func TestClientCRUD(t *testing.T) {
 
 	modelIn.Name = "some_other_name"
 
-	res, err = client.Update(ctx, thingSome, modelIn)
+	res, err = client.Update(ctx, "some", modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +215,7 @@ func TestClientLive(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, "some", modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +294,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, "some", modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +324,7 @@ func TestWebsocketReconnect(t *testing.T) {
 
 	req := testcontainers.ContainerRequest{
 		Name:  containerName,
-		Image: "surrealdb/surrealdb:" + surrealDBContainerVersion,
+		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
 		Cmd: []string{
 			"start", "--auth", "--strict", "--allow-funcs",
 			"--user", surrealUser,

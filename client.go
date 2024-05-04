@@ -206,6 +206,7 @@ func (c *Client) withReconnect(fn func() error) error {
 
 			if err := c.connect(); err != nil {
 				c.logger.Error("Could not reconnect to websocket.", "error", err)
+
 				return err
 			}
 
@@ -216,29 +217,29 @@ func (c *Client) withReconnect(fn func() error) error {
 
 func (c *Client) init() error {
 	if err := c.signIn(c.connCtx, c.conf.Username, c.conf.Password); err != nil {
-		return fmt.Errorf("could not sign in: %v", err)
+		return fmt.Errorf("failed to sign in: %w", err)
 	}
 
 	if err := c.use(c.connCtx, c.conf.Namespace, c.conf.Database); err != nil {
-		return fmt.Errorf("could not select namespace and database: %v", err)
+		return fmt.Errorf("failed to select namespace and database: %w", err)
 	}
 
-	resp, err := c.Query(c.connCtx, "define namespace "+c.conf.Namespace, nil)
+	resp, err := c.Query(c.connCtx, "DEFINE NAMESPACE "+c.conf.Namespace, nil)
 	if err != nil {
 		return err
 	}
 
 	if err := c.checkBasicResponse(resp); err != nil {
-		return fmt.Errorf("could not define namespace: %w", err)
+		return fmt.Errorf("failed to define namespace: %w", err)
 	}
 
-	resp, err = c.Query(c.connCtx, "define database "+c.conf.Database, nil)
+	resp, err = c.Query(c.connCtx, "DEFINE DATABASE "+c.conf.Database, nil)
 	if err != nil {
 		return err
 	}
 
 	if err := c.checkBasicResponse(resp); err != nil {
-		return fmt.Errorf("could not define database: %w", err)
+		return fmt.Errorf("failed to define database: %w", err)
 	}
 
 	return nil
