@@ -2,11 +2,14 @@ package sdbc
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"golang.org/x/exp/maps"
-	"math/rand"
-	"nhooyr.io/websocket"
+	"math/big"
 	"strings"
+
+	"nhooyr.io/websocket"
+
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -20,10 +23,10 @@ const (
 	methodCreate = "create"
 
 	livePrefix = "live"
-)
 
-const (
 	nilValue = "null"
+
+	randomVariablePrefixLength = 32
 )
 
 // signIn is a helper method for signing in a user.
@@ -60,11 +63,11 @@ func (c *Client) use(ctx context.Context, namespace, database string) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("could not send request: %w", err)
+		return fmt.Errorf("failed to send request: %w", err)
 	}
 
 	if string(res) != nilValue {
-		return fmt.Errorf("could not select database due to %s", string(res))
+		return fmt.Errorf("%w: %s", ErrCouldNotSelectDatabase, string(res))
 	}
 
 	return nil
@@ -82,7 +85,7 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any) (
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	return res, nil
@@ -101,9 +104,12 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any) (
 // Bug: LQ params should be evaluated before registering (https://github.com/surrealdb/surrealdb/issues/2641)
 // Bug: parameters do not work with live queries (https://github.com/surrealdb/surrealdb/issues/3602)
 //
-// TODO: prevent query from being more than one statement
+// TODO: prevent query from being more than one statement.
 func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<-chan []byte, error) {
-	varPrefix := randString(32)
+	varPrefix, err := randString(randomVariablePrefixLength)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate random string: %w", err)
+	}
 
 	params := make(map[string]string, len(vars))
 
@@ -129,7 +135,7 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	var res []basicResponse[string]
@@ -142,14 +148,14 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 	queryIndex := len(params)
 
 	if len(res) < 1 || res[queryIndex].Result == "" {
-		return nil, fmt.Errorf("empty response")
+		return nil, ErrEmptyResponse
 	}
 
 	liveKey := res[queryIndex].Result
 
-	ch, ok := c.liveQueries.get(liveKey, true)
+	liveChan, ok := c.liveQueries.get(liveKey, true)
 	if !ok {
-		return nil, fmt.Errorf("could not get live query channel")
+		return nil, ErrCouldNotGetLiveQueryChannel
 	}
 
 	c.waitGroup.Add(1)
@@ -169,7 +175,7 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		c.liveQueries.del(key)
 
 		// Find the best context to kill the live query with.
-		var killCtx context.Context
+		var killCtx context.Context //nolint:contextcheck // assigned in switch below
 
 		switch {
 
@@ -194,7 +200,7 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		}
 	}(liveKey)
 
-	return ch, nil
+	return liveChan, nil
 }
 
 func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
@@ -207,7 +213,7 @@ func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 		},
 	)
 	if err != nil {
-		return res, fmt.Errorf("could not send request: %w", err)
+		return res, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	return res, nil
@@ -224,7 +230,7 @@ func (c *Client) Select(ctx context.Context, thing string) ([]byte, error) {
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	return res, nil
@@ -241,7 +247,7 @@ func (c *Client) Create(ctx context.Context, thing string, data any) ([]byte, er
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	return res, nil
@@ -259,7 +265,7 @@ func (c *Client) Update(ctx context.Context, thing string, data any) ([]byte, er
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	return res, nil
@@ -276,7 +282,7 @@ func (c *Client) Delete(ctx context.Context, thing string) ([]byte, error) {
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	return res, nil
@@ -295,7 +301,8 @@ type signInParams struct {
 // -- INTERNAL
 //
 
-func (c *Client) send(ctx context.Context, req request) (_ []byte, err error) {
+func (c *Client) send(ctx context.Context, req request) ([]byte, error) {
+	var err error
 	defer c.checkWebsocketConn(err)
 
 	reqID, resCh := c.requests.prepare()
@@ -320,7 +327,7 @@ func (c *Client) send(ctx context.Context, req request) (_ []byte, err error) {
 
 	case res, more := <-resCh:
 		if !more {
-			return nil, fmt.Errorf("channel closed")
+			return nil, ErrChannelClosed
 		}
 
 		return res.data, res.err
@@ -329,7 +336,8 @@ func (c *Client) send(ctx context.Context, req request) (_ []byte, err error) {
 
 // write writes the JSON message v to c.
 // It will reuse buffers in between calls to avoid allocations.
-func (c *Client) write(ctx context.Context, req request) (err error) {
+func (c *Client) write(ctx context.Context, req request) error {
+	var err error
 	defer c.checkWebsocketConn(err)
 
 	data, err := c.jsonMarshal(req)
@@ -350,14 +358,21 @@ func (c *Client) write(ctx context.Context, req request) (err error) {
 // -- HELPER
 //
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const (
+	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
 
-func randString(n int) string {
-	b := make([]byte, n)
+func randString(n int) (string, error) {
+	byteSlice := make([]byte, n)
 
-	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	for index := range byteSlice {
+		randInt, err := rand.Int(rand.Reader, big.NewInt(int64(len(letterBytes))))
+		if err != nil {
+			return "", fmt.Errorf("failed to generate random string: %w", err)
+		}
+
+		byteSlice[index] = letterBytes[randInt.Int64()]
 	}
 
-	return string(b)
+	return string(byteSlice), nil
 }

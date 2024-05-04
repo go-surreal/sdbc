@@ -3,14 +3,15 @@ package sdbc
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
+	"os"
+	"testing"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"log/slog"
-	"os"
-	"testing"
 )
 
 const (
@@ -19,6 +20,10 @@ const (
 	containerStartedMsg = "Started web server on 0.0.0.0:8000"
 	surrealUser         = "root"
 	surrealPass         = "root"
+)
+
+const (
+	thingSome = "some"
 )
 
 func conf(host string) Config {
@@ -32,9 +37,11 @@ func conf(host string) Config {
 }
 
 func TestClient(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareDatabase(ctx, t, "test_client")
 	defer cleanup()
 
 	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
@@ -51,9 +58,11 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientCRUD(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareDatabase(ctx, t, "test_client_crud")
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -67,11 +76,11 @@ func TestClientCRUD(t *testing.T) {
 
 	modelIn := someModel{
 		Name:  "some_name",
-		Value: 42,
+		Value: 42, //nolint:revive // test value
 		Slice: []string{"a", "b", "c"},
 	}
 
-	res, err := client.Create(ctx, "some", modelIn)
+	res, err := client.Create(ctx, thingSome, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +118,7 @@ func TestClientCRUD(t *testing.T) {
 
 	modelIn.Name = "some_other_name"
 
-	res, err = client.Update(ctx, "some", modelIn)
+	res, err = client.Update(ctx, thingSome, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,9 +166,11 @@ func TestClientCRUD(t *testing.T) {
 }
 
 func TestClientLive(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareDatabase(ctx, t, "test_client_live")
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -173,7 +184,7 @@ func TestClientLive(t *testing.T) {
 
 	modelIn := someModel{
 		Name:  "some_name",
-		Value: 42,
+		Value: 42, //nolint:revive // test value
 		Slice: []string{"a", "b", "c"},
 	}
 
@@ -197,6 +208,7 @@ func TestClientLive(t *testing.T) {
 			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
 				liveResChan <- nil
 				liveErrChan <- err
+
 				return
 			}
 
@@ -207,7 +219,7 @@ func TestClientLive(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, "some", modelIn)
+	res, err := client.Create(ctx, thingSome, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,9 +243,11 @@ func TestClientLive(t *testing.T) {
 }
 
 func TestClientLiveFilter(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareDatabase(ctx, t, "test_client_live_filter")
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -247,7 +261,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	modelIn := someModel{
 		Name:  "some_name",
-		Value: 42,
+		Value: 42, //nolint:revive // test value
 		Slice: []string{"a", "b", "c"},
 	}
 
@@ -273,6 +287,7 @@ func TestClientLiveFilter(t *testing.T) {
 			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
 				liveResChan <- nil
 				liveErrChan <- err
+
 				return
 			}
 
@@ -283,7 +298,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, "some", modelIn)
+	res, err := client.Create(ctx, thingSome, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,11 +348,11 @@ type someModel struct {
 // -- HELPER
 //
 
-func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
-	tb.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
+func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (*Client, func()) {
+	tb.Helper()
 
 	req := testcontainers.ContainerRequest{
-		Name:  containerName,
+		Name:  "sdbc_" + containerName,
 		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
 		Cmd: []string{
 			"start", "--auth", "--strict", "--allow-funcs",
