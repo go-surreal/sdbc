@@ -10,7 +10,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.30.0
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
 	gotest.tools/v3 v3.5.1
-	nhooyr.io/websocket v1.8.11
+	nhooyr.io/websocket v1.8.10
 )
 
 require (
