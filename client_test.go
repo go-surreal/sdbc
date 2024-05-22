@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/brianvoe/gofakeit/v7"
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -17,7 +18,7 @@ import (
 const (
 	surrealDBVersion    = "1.4.2"
 	containerName       = "sdbd_test_surrealdb"
-	containerStartedMsg = "Started web server on 0.0.0.0:8000"
+	containerStartedMsg = "Started web server on "
 	surrealUser         = "root"
 	surrealPass         = "root"
 )
@@ -350,6 +351,9 @@ type someModel struct {
 
 func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (*Client, func()) {
 	tb.Helper()
+
+	username := gofakeit.Username()
+	password := gofakeit.Password(true, true, true, true, true, 32)
 
 	req := testcontainers.ContainerRequest{
 		Name:  "sdbc_" + containerName,
