@@ -2,6 +2,7 @@ package sdbc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -80,19 +81,27 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 
-	if err := client.readVersion(ctx); err != nil {
-		return nil, fmt.Errorf("failed to read version: %w", err)
-	}
-
-	if err := client.openWebsocket(); err != nil {
-		return nil, err
-	}
-
-	if err := client.init(ctx, conf); err != nil {
-		return nil, fmt.Errorf("failed to initialize client: %w", err)
+	if err := client.connect(); err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	return client, nil
+}
+
+func (c *Client) connect() error {
+	if err := c.readVersion(c.connCtx); err != nil {
+		return fmt.Errorf("failed to read version: %w", err)
+	}
+
+	if err := c.openWebsocket(); err != nil {
+		return fmt.Errorf("failed to open websocket: %w", err)
+	}
+
+	if err := c.init(); err != nil {
+		return fmt.Errorf("failed to initialize client: %w", err)
+	}
+
+	return nil
 }
 
 func (c *Client) readVersion(ctx context.Context) error {
@@ -133,11 +142,11 @@ func (c *Client) openWebsocket() error {
 	defer c.connMutex.Unlock()
 
 	// make sure the previous connection is closed
-	if c.conn != nil {
-		if err := c.conn.Close(websocket.StatusServiceRestart, "reconnect"); err != nil {
-			return fmt.Errorf("failed to close websocket connection: %w", err)
-		}
-	}
+	//if c.conn != nil {
+	//	if err := c.conn.Close(websocket.StatusServiceRestart, "reconnect"); err != nil {
+	//		return fmt.Errorf("failed to close websocket connection: %w", err)
+	//	}
+	//}
 
 	requestURL := url.URL{
 		Scheme: schemeWS,
@@ -154,7 +163,7 @@ func (c *Client) openWebsocket() error {
 		CompressionMode: websocket.CompressionContextTakeover,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to open websocket connection: %w", err)
+		return fmt.Errorf("failed to dial websocket address: %w", err)
 	}
 
 	conn.SetReadLimit(c.options.readLimit)
@@ -170,58 +179,67 @@ func (c *Client) openWebsocket() error {
 	return nil
 }
 
-func (c *Client) checkWebsocketConn(err error) {
+func (c *Client) withReconnect(fn func() error) error {
+	err := fn()
 	if err == nil {
-		return
+		return nil
+	}
+
+	if c.connClosed {
+		return err
 	}
 
 	status := websocket.CloseStatus(err)
 
-	if status == -1 || status == websocket.StatusNormalClosure {
-		return
+	if !errors.Is(err, io.EOF) && (status == -1 || status == websocket.StatusNormalClosure) {
+		return err
 	}
 
 	select {
 
 	case <-c.connCtx.Done():
-		return
+		return err
 
 	default:
 		{
 			c.logger.Error("Websocket connection closed unexpectedly. Trying to reconnect.", "error", err)
 
-			if err := c.openWebsocket(); err != nil {
+			if err := c.connect(); err != nil {
 				c.logger.Error("Could not reconnect to websocket.", "error", err)
+
+				return err
 			}
+
+			return fn()
 		}
 	}
 }
 
-func (c *Client) init(ctx context.Context, conf Config) error {
-	if err := c.signIn(ctx, conf.Username, conf.Password); err != nil {
+func (c *Client) init() error {
+	if err := c.signIn(c.connCtx, c.conf.Username, c.conf.Password); err != nil {
 		return fmt.Errorf("failed to sign in: %w", err)
 	}
 
-	if err := c.use(ctx, conf.Namespace, conf.Database); err != nil {
+	if err := c.use(c.connCtx, c.conf.Namespace, c.conf.Database); err != nil {
 		return fmt.Errorf("failed to select namespace and database: %w", err)
 	}
 
-	resp, err := c.Query(ctx, "define namespace "+conf.Namespace, nil)
+	resp, err := c.Query(c.connCtx, "DEFINE NAMESPACE "+c.conf.Namespace, nil)
 	if err != nil {
 		return err
 	}
 
 	if err := c.checkBasicResponse(resp); err != nil {
-		return fmt.Errorf("could not define namespace: %w", err)
+		return fmt.Errorf("failed to define namespace: %w", err)
 	}
 
-	resp, err = c.Query(ctx, "define database "+conf.Database, nil)
+	resp, err = c.Query(c.connCtx, "DEFINE DATABASE "+c.conf.Database, nil)
 	if err != nil {
 		return err
 	}
 
 	if err := c.checkBasicResponse(resp); err != nil {
-		return fmt.Errorf("could not define database: %w", err)
+		return fmt.Errorf("failed to define database: %w", err)
 	}
 
 	return nil

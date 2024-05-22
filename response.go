@@ -51,16 +51,27 @@ func (c *Client) subscribe() {
 // read reads a single websocket message.
 // It will reuse buffers in between calls to avoid allocations.
 func (c *Client) read(ctx context.Context) ([]byte, error) {
-	var err error
-	defer c.checkWebsocketConn(err)
+	var reader io.Reader
 
-	msgType, reader, err := c.conn.Reader(ctx)
+	err := c.withReconnect(func() error {
+		// var err error
+		// defer c.checkWebsocketConn(err)
+
+		msgType, newReader, err := c.conn.Reader(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get reader: %w", err)
+		}
+
+		if msgType != websocket.MessageText {
+			return fmt.Errorf("%w, got %v", ErrExpectedTextMessage, msgType)
+		}
+
+		reader = newReader
+
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get reader: %w", err)
-	}
-
-	if msgType != websocket.MessageText {
-		return nil, fmt.Errorf("%w, got %v", ErrExpectedTextMessage, msgType)
+		return nil, err
 	}
 
 	buff := c.buffers.Get()

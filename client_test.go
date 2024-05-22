@@ -3,6 +3,7 @@ package sdbc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -20,10 +21,6 @@ const (
 	containerStartedMsg = "Started web server on 0.0.0.0:8000"
 	surrealUser         = "root"
 	surrealPass         = "root"
-)
-
-const (
-	thingSome = "some"
 )
 
 func conf(host string) Config {
@@ -80,7 +77,7 @@ func TestClientCRUD(t *testing.T) {
 		Slice: []string{"a", "b", "c"},
 	}
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, "some", modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +115,7 @@ func TestClientCRUD(t *testing.T) {
 
 	modelIn.Name = "some_other_name"
 
-	res, err = client.Update(ctx, thingSome, modelIn)
+	res, err = client.Update(ctx, "some", modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +216,7 @@ func TestClientLive(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, "some", modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +295,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, "some", modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,6 +316,129 @@ func TestClientLiveFilter(t *testing.T) {
 
 	assert.Check(t, is.Nil(liveErr))
 	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
+}
+
+func TestWebsocketReconnect(t *testing.T) {
+	ctx := context.Background()
+
+	// SETUP DATABASE
+
+	req := testcontainers.ContainerRequest{
+		Name:  containerName,
+		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
+		Cmd: []string{
+			"start", "--auth", "--strict", "--allow-funcs",
+			"--user", surrealUser,
+			"--pass", surrealPass,
+			"--log", "trace", "memory",
+		},
+		ExposedPorts: []string{"8000/tcp"},
+		WaitingFor:   wait.ForLog(containerStartedMsg),
+		HostConfigModifier: func(conf *container.HostConfig) {
+			conf.AutoRemove = true
+		},
+	}
+
+	surreal, err := testcontainers.GenericContainer(ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+			Reuse:            true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// SETUP CLIENT
+
+	endpoint, err := surreal.Endpoint(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client, err := NewClient(ctx,
+		conf(endpoint),
+		WithLogger(
+			slog.New(
+				slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
+			),
+		),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// DEFINE TABLE
+
+	_, err = client.Query(ctx, "define table some schemaless", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// CREATE
+
+	modelIn := someModel{
+		Name:  "some_name",
+		Value: 42,
+		Slice: []string{"a", "b", "c"},
+	}
+
+	_, err = client.Create(ctx, "some", modelIn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// START SECOND DATABASE
+
+	req.Name = req.Name + "_2"
+
+	surreal2, err := testcontainers.GenericContainer(ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+			Reuse:            false,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Hack to apply the new endpoint to the client.
+	// Required, b/c testcontainers-go does not support restarting containers.
+	{
+		endpoint, err = surreal2.Endpoint(ctx, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		fmt.Println("new endpoint:", endpoint)
+
+		client.conf = conf(endpoint)
+	}
+
+	// TERMINATE FIRST DATABASE
+
+	if err = surreal.Terminate(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// QUERY
+
+	_, err = client.Query(ctx, "select * from some", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// CLEANUP
+
+	if err := client.Close(); err != nil {
+		t.Fatalf("failed to close client: %s", err.Error())
+	}
+
+	if err := surreal.Terminate(ctx); err != nil {
+		t.Fatalf("failed to terminate container: %s", err.Error())
+	}
 }
 
 //
