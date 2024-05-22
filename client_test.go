@@ -27,16 +27,6 @@ const (
 	thingSome = "some"
 )
 
-func conf(host string) Config {
-	return Config{
-		Host:      host,
-		Username:  surrealUser,
-		Password:  surrealPass,
-		Namespace: "test",
-		Database:  "test",
-	}
-}
-
 func TestClient(t *testing.T) {
 	t.Parallel()
 
@@ -354,15 +344,21 @@ func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (
 
 	username := gofakeit.Username()
 	password := gofakeit.Password(true, true, true, true, true, 32)
+	namespace := gofakeit.Noun()
+	database := gofakeit.Noun()
 
 	req := testcontainers.ContainerRequest{
 		Name:  "sdbc_" + containerName,
 		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
+		Env: map[string]string{
+			"SURREAL_PATH":   "memory",
+			"SURREAL_STRICT": "true",
+			"SURREAL_AUTH":   "true",
+			"SURREAL_USER":   username,
+			"SURREAL_PASS":   password,
+		},
 		Cmd: []string{
-			"start", "--auth", "--strict", "--allow-funcs",
-			"--user", surrealUser,
-			"--pass", surrealPass,
-			"--log", "trace", "memory",
+			"start", "--allow-funcs", "--log", "trace",
 		},
 		ExposedPorts: []string{"8000/tcp"},
 		WaitingFor:   wait.ForLog(containerStartedMsg),
@@ -375,7 +371,6 @@ func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: req,
 			Started:          true,
-			Reuse:            true,
 		},
 	)
 	if err != nil {
@@ -388,7 +383,13 @@ func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (
 	}
 
 	client, err := NewClient(ctx,
-		conf(host),
+		Config{
+			Host:      host,
+			Username:  username,
+			Password:  password,
+			Namespace: namespace,
+			Database:  database,
+		},
 		WithLogger(
 			slog.New(
 				slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
