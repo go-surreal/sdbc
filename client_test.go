@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	surrealDBVersion    = "1.4.2"
+	surrealDBVersion    = "1.5.0"
 	containerName       = "sdbd_test_surrealdb"
 	containerStartedMsg = "Started web server on "
 	surrealUser         = "root"
