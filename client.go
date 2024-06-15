@@ -206,7 +206,6 @@ var (
 )
 
 func (c *Client) init(ctx context.Context, conf Config) error {
-
 	if !regexName.MatchString(conf.Namespace) {
 		return ErrInvalidNamespaceName
 	}

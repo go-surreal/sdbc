@@ -343,8 +343,8 @@ func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
 
 	username := gofakeit.Username()
 	password := gofakeit.Password(true, true, true, true, true, 32)
-	namespace := gofakeit.Noun()
-	database := gofakeit.Noun()
+	namespace := gofakeit.FirstName()
+	database := gofakeit.LastName()
 
 	req := testcontainers.ContainerRequest{
 		Name:  "sdbc_" + toSlug(tb.Name()),
