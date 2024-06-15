@@ -23,3 +23,9 @@ tasks:
     desc: "Execute all go tests."
     cmds:
       - go test ./...
+
+  test-clean:
+    aliases: [ tc ]
+    desc: "Execute all go tests without cache."
+    cmds:
+      - go test -count=1 ./...

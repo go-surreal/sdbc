@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -197,7 +198,23 @@ func (c *Client) checkWebsocketConn(err error) {
 	}
 }
 
+var regexName = regexp.MustCompile("[A-Za-z0-9_]+")
+
+var (
+	ErrInvalidNamespaceName = fmt.Errorf("invalid namespace name")
+	ErrInvalidDatabaseName  = fmt.Errorf("invalid database name")
+)
+
 func (c *Client) init(ctx context.Context, conf Config) error {
+
+	if !regexName.MatchString(conf.Namespace) {
+		return ErrInvalidNamespaceName
+	}
+
+	if !regexName.MatchString(conf.Database) {
+		return ErrInvalidDatabaseName
+	}
+
 	if err := c.signIn(ctx, conf.Username, conf.Password); err != nil {
 		return fmt.Errorf("failed to sign in: %w", err)
 	}
@@ -206,7 +223,7 @@ func (c *Client) init(ctx context.Context, conf Config) error {
 		return fmt.Errorf("failed to select namespace and database: %w", err)
 	}
 
-	resp, err := c.Query(ctx, "define namespace "+conf.Namespace, nil)
+	resp, err := c.Query(ctx, "DEFINE NAMESPACE IF NOT EXISTS "+conf.Namespace, nil)
 	if err != nil {
 		return err
 	}
@@ -215,7 +232,7 @@ func (c *Client) init(ctx context.Context, conf Config) error {
 		return fmt.Errorf("could not define namespace: %w", err)
 	}
 
-	resp, err = c.Query(ctx, "define database "+conf.Database, nil)
+	resp, err = c.Query(ctx, "DEFINE DATABASE IF NOT EXISTS "+conf.Database, nil)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v7"
@@ -17,10 +19,7 @@ import (
 
 const (
 	surrealDBVersion    = "1.5.0"
-	containerName       = "sdbd_test_surrealdb"
 	containerStartedMsg = "Started web server on "
-	surrealUser         = "root"
-	surrealPass         = "root"
 )
 
 const (
@@ -32,7 +31,7 @@ func TestClient(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t, "test_client")
+	client, cleanup := prepareDatabase(ctx, t)
 	defer cleanup()
 
 	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
@@ -53,7 +52,7 @@ func TestClientCRUD(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t, "test_client_crud")
+	client, cleanup := prepareDatabase(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -161,7 +160,7 @@ func TestClientLive(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t, "test_client_live")
+	client, cleanup := prepareDatabase(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -238,7 +237,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t, "test_client_live_filter")
+	client, cleanup := prepareDatabase(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -339,7 +338,7 @@ type someModel struct {
 // -- HELPER
 //
 
-func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (*Client, func()) {
+func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
 	tb.Helper()
 
 	username := gofakeit.Username()
@@ -348,7 +347,7 @@ func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (
 	database := gofakeit.Noun()
 
 	req := testcontainers.ContainerRequest{
-		Name:  "sdbc_" + containerName,
+		Name:  "sdbc_" + toSlug(tb.Name()),
 		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
 		Env: map[string]string{
 			"SURREAL_PATH":   "memory",
@@ -371,6 +370,7 @@ func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: req,
 			Started:          true,
+			Reuse:            true,
 		},
 	)
 	if err != nil {
@@ -411,4 +411,24 @@ func prepareDatabase(ctx context.Context, tb testing.TB, containerName string) (
 	}
 
 	return client, cleanup
+}
+
+func toSlug(input string) string {
+	// Remove special characters
+	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
+	if err != nil {
+		panic(err)
+	}
+	processedString := reg.ReplaceAllString(input, " ")
+
+	// Remove leading and trailing spaces
+	processedString = strings.TrimSpace(processedString)
+
+	// Replace spaces with dashes
+	slug := strings.ReplaceAll(processedString, " ", "-")
+
+	// Convert to lowercase
+	slug = strings.ToLower(slug)
+
+	return slug
 }
