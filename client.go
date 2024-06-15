@@ -198,9 +198,9 @@ func (c *Client) checkWebsocketConn(err error) {
 	}
 }
 
-var regexName = regexp.MustCompile("[A-Za-z0-9_]+")
-
 var (
+	regexName = regexp.MustCompile("[A-Za-z0-9_]+")
+
 	ErrInvalidNamespaceName = fmt.Errorf("invalid namespace name")
 	ErrInvalidDatabaseName  = fmt.Errorf("invalid database name")
 )
