@@ -81,10 +81,9 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 
-	// TODO: GET /version does not work with version 2.0.0-alpha.1
-	//if err := client.readVersion(ctx); err != nil {
-	//	return nil, fmt.Errorf("failed to read version: %w", err)
-	//}
+	if err := client.readVersion(ctx); err != nil {
+		return nil, fmt.Errorf("failed to read version: %w", err)
+	}
 
 	if err := client.openWebsocket(); err != nil {
 		return nil, err

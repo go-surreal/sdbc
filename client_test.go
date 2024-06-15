@@ -257,8 +257,8 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// LIVE QUERY
 
-	live, err := client.Live(ctx, "select * from some where name in $0", map[string]any{
-		"0": []string{"some_name", "some_other_name"},
+	live, err := client.Live(ctx, "select * from some where name in $a", map[string]any{
+		"a": []string{"some_name", "some_other_name"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -357,7 +357,7 @@ func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
 			"SURREAL_PASS":   password,
 		},
 		Cmd: []string{
-			"start", "--allow-funcs", "--log", "trace",
+			"start", "--bind", "0.0.0.0:8000", "--allow-funcs", "--log", "trace",
 		},
 		ExposedPorts: []string{"8000/tcp"},
 		WaitingFor:   wait.ForLog(containerStartedMsg),
