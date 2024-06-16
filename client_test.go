@@ -3,6 +3,7 @@ package sdbc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
 	"regexp"
@@ -31,7 +32,7 @@ func TestClient(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareClient(ctx, t)
 	defer cleanup()
 
 	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
@@ -52,7 +53,7 @@ func TestClientCRUD(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareClient(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -160,7 +161,7 @@ func TestClientLive(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareClient(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -237,7 +238,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareClient(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -311,6 +312,53 @@ func TestClientLiveFilter(t *testing.T) {
 	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
 }
 
+func TestInvalidNamespaceAndDatabaseNames(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	username := gofakeit.Username()
+	password := gofakeit.Password(true, true, true, true, true, 32)
+
+	dbHost, dbCleanup := prepareDatabase(ctx, t, username, password)
+	defer dbCleanup()
+
+	namespace := gofakeit.FirstName()
+	database := gofakeit.LastName()
+
+	// test invalid namespace name
+
+	invalidNamespace := gofakeit.Name()
+
+	_, err := NewClient(ctx,
+		Config{
+			Host:      dbHost,
+			Username:  username,
+			Password:  password,
+			Namespace: invalidNamespace,
+			Database:  database,
+		},
+	)
+
+	assert.Check(t, errors.Is(err, ErrInvalidNamespaceName))
+
+	// test invalid database name
+
+	invalidDatabase := gofakeit.Name()
+
+	_, err = NewClient(ctx,
+		Config{
+			Host:      dbHost,
+			Username:  username,
+			Password:  password,
+			Namespace: namespace,
+			Database:  invalidDatabase,
+		},
+	)
+
+	assert.Check(t, errors.Is(err, ErrInvalidDatabaseName))
+}
+
 //
 // -- TYPES
 //
@@ -338,13 +386,51 @@ type someModel struct {
 // -- HELPER
 //
 
-func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
+func prepareClient(ctx context.Context, tb testing.TB) (*Client, func()) {
 	tb.Helper()
 
 	username := gofakeit.Username()
 	password := gofakeit.Password(true, true, true, true, true, 32)
 	namespace := gofakeit.FirstName()
 	database := gofakeit.LastName()
+
+	dbHost, dbCleanup := prepareDatabase(ctx, tb, username, password)
+
+	client, err := NewClient(ctx,
+		Config{
+			Host:      dbHost,
+			Username:  username,
+			Password:  password,
+			Namespace: namespace,
+			Database:  database,
+		},
+		WithLogger(
+			slog.New(
+				slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
+			),
+		),
+	)
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	cleanup := func() {
+		if err := client.Close(); err != nil {
+			tb.Fatalf("failed to close client: %s", err.Error())
+		}
+
+		dbCleanup()
+	}
+
+	return client, cleanup
+}
+
+func prepareDatabase(
+	ctx context.Context, tb testing.TB, username, password string,
+) (
+	string, func(),
+) {
+	tb.Helper()
 
 	req := testcontainers.ContainerRequest{
 		Name:  "sdbc_" + toSlug(tb.Name()),
@@ -382,35 +468,13 @@ func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
 		tb.Fatal(err)
 	}
 
-	client, err := NewClient(ctx,
-		Config{
-			Host:      host,
-			Username:  username,
-			Password:  password,
-			Namespace: namespace,
-			Database:  database,
-		},
-		WithLogger(
-			slog.New(
-				slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
-			),
-		),
-	)
-	if err != nil {
-		tb.Fatal(err)
-	}
-
 	cleanup := func() {
-		if err := client.Close(); err != nil {
-			tb.Fatalf("failed to close client: %s", err.Error())
-		}
-
 		if err := surreal.Terminate(ctx); err != nil {
 			tb.Fatalf("failed to terminate container: %s", err.Error())
 		}
 	}
 
-	return client, cleanup
+	return host, cleanup
 }
 
 func toSlug(input string) string {
