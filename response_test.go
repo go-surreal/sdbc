@@ -45,9 +45,9 @@ func TestClientSubscribeContextDeadlineExceeded(t *testing.T) {
 		ctx := context.Background()
 
 		client, cleanup := prepareClient(ctx, t)
-		defer cleanup()
+		cleanup()
 
-		ctx, cancel := context.WithDeadline(ctx, time.Now())
+		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(time.Second))
 		defer cancel()
 
 		client.connCtx = ctx
