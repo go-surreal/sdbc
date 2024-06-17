@@ -95,6 +95,18 @@ func (r *requests) reset() {
 	})
 }
 
+func (r *requests) len() int {
+	count := 0
+
+	r.store.Range(func(key, ch any) bool {
+		count++
+
+		return true
+	})
+
+	return count
+}
+
 //
 // -- LIVE QUERIES
 //
