@@ -9,6 +9,8 @@ import (
 )
 
 func TestDuration(t *testing.T) {
+	t.Parallel()
+
 	testValue := fmt.Sprintf(`"%s"`, time.Hour.String())
 
 	var dur duration
@@ -21,6 +23,8 @@ func TestDuration(t *testing.T) {
 }
 
 func TestDurationErrNotNil(t *testing.T) {
+	t.Parallel()
+
 	var dur duration
 
 	err := json.Unmarshal([]byte("123"), &dur)

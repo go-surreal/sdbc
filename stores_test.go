@@ -7,6 +7,8 @@ import (
 )
 
 func TestStoresGetInvalidAssert(t *testing.T) {
+	t.Parallel()
+
 	var pool bufPool
 
 	pool.Pool.Put("invalid type")
@@ -18,6 +20,8 @@ func TestStoresGetInvalidAssert(t *testing.T) {
 }
 
 func TestRequestsUnknownKey(t *testing.T) {
+	t.Parallel()
+
 	var req requests
 
 	_, ok := req.get("unknown key")
@@ -26,6 +30,8 @@ func TestRequestsUnknownKey(t *testing.T) {
 }
 
 func TestRequestsReset(t *testing.T) {
+	t.Parallel()
+
 	var req requests
 
 	req.prepare()
@@ -42,6 +48,8 @@ func TestRequestsReset(t *testing.T) {
 }
 
 func TestLiveQueriesGetErrorCases(t *testing.T) {
+	t.Parallel()
+
 	var lq liveQueries
 
 	_, ok := lq.get("unknown_key", false)
