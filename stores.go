@@ -100,6 +100,7 @@ func (r *requests) len() int {
 
 	r.store.Range(func(key, ch any) bool {
 		count++
+
 		return true
 	})
 
