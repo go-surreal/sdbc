@@ -7,22 +7,19 @@
 <hr />
 
 <p align="center">
-  <a href="https://go.dev/doc/devel/release">
-    <img src="https://img.shields.io/badge/go-1.22.3-informational" alt="Go 1.22.3">
-  </a>
-  <a href="https://goreportcard.com/report/github.com/go-surreal/sdbc">
-    <img src="https://goreportcard.com/badge/github.com/go-surreal/sdbc" alt="Go Report Card">
-  </a>
-  <a href="https://github.com/go-surreal/sdbc/actions/workflows/tests_codecov.yml">
-    <img src="https://github.com/go-surreal/sdbc/actions/workflows/tests_codecov.yml/badge.svg?branch=main" alt="Tests">
-  </a>
-  <a href="https://codecov.io/gh/go-surreal/sdbc" > 
-    <img src="https://codecov.io/gh/go-surreal/sdbc/graph/badge.svg?token=AMR12YX5XU" alt="Codecov"/> 
-  </a>
-  <a href="https://discord.gg/surrealdb">
-    <img src="https://img.shields.io/discord/902568124350599239?label=discord&color=5a66f6" alt="Discord">
-  </a>
-  <img src="https://img.shields.io/github/contributors/go-surreal/sdbc" alt="Contributors">
+    <a href="https://github.com/go-surreal/sdbc/releases"><img src="https://img.shields.io/github/v/release/go-surreal/sdbc" alt="release"></a>
+    &nbsp;
+    <a href="https://go.dev/doc/devel/release"><img src="https://img.shields.io/github/go-mod/go-version/go-surreal/sdbc?label=go" alt="go version"></a>
+    &nbsp;
+    <a href="https://goreportcard.com/report/github.com/go-surreal/sdbc"><img src="https://goreportcard.com/badge/github.com/go-surreal/sdbc" alt="go report card"></a>
+    &nbsp;
+    <a href="https://github.com/go-surreal/sdbc/actions/workflows/tests_codecov.yml"><img src="https://github.com/go-surreal/sdbc/actions/workflows/tests_codecov.yml/badge.svg?branch=main" alt="tests"></a>
+    &nbsp;
+    <a href="https://codecov.io/gh/go-surreal/sdbc"><img src="https://codecov.io/gh/go-surreal/sdbc/graph/badge.svg?token=AMR12YX5XU" alt="codecov"></a>
+    &nbsp;
+    <a href="https://discord.gg/surrealdb"><img src="https://img.shields.io/discord/902568124350599239?label=discord&color=5a66f6" alt="discord"></a>
+    &nbsp;
+    <img src="https://img.shields.io/github/contributors/go-surreal/sdbc" alt="contributors">
 </p>
 
 SDBC (**S**urreal**DB** **C**lient) is an independent Go client for the innovative [SurrealDB](https://surrealdb.com/).
