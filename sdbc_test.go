@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func prepare(tb testing.TB) {
@@ -267,6 +268,41 @@ func (l *testLogger) hasRecordMsg(msg string) bool {
 	}
 
 	return false
+}
+
+//
+// -- CONTEXT
+//
+
+type testContext struct {
+	mu  sync.Mutex
+	err error
+}
+
+func (t *testContext) Deadline() (time.Time, bool) {
+	return time.Time{}, false
+}
+
+func (t *testContext) Done() <-chan struct{} {
+	return make(chan struct{})
+}
+
+func (t *testContext) Err() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	return t.err
+}
+
+func (t *testContext) Value(_ any) any {
+	return nil
+}
+
+func (t *testContext) setErr(err error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.err = err
 }
 
 //

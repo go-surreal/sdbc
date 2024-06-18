@@ -48,35 +48,14 @@ func TestClientSubscribeErrorCases(t *testing.T) {
 	assert.Check(t, logger.hasRecordMsg("Could not read from websocket."))
 }
 
-type testContext struct {
-	mu  sync.Mutex
-	err error
-}
+func TestClientReadContextNil(t *testing.T) {
+	t.Parallel()
+	prepare(t)
 
-func (t *testContext) Deadline() (time.Time, bool) {
-	return time.Time{}, false
-}
+	client := &Client{}
 
-func (t *testContext) Done() <-chan struct{} {
-	return make(chan struct{})
-}
-
-func (t *testContext) Err() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	return t.err
-}
-
-func (t *testContext) Value(_ any) any {
-	return nil
-}
-
-func (t *testContext) setErr(err error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	t.err = err
+	_, err := client.read(nil)
+	assert.Check(t, errors.Is(err, ErrContextNil))
 }
 
 //func TestClientSubscribeContextCanceled(t *testing.T) {
