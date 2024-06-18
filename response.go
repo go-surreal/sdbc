@@ -15,8 +15,6 @@ const (
 	logArgID = "id"
 )
 
-var ErrContextNil = errors.New("context is nil")
-
 func (c *Client) subscribe(ctx context.Context) {
 	resChan := make(resultChannel[[]byte])
 
