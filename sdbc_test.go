@@ -3,6 +3,7 @@ package sdbc
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/brianvoe/gofakeit/v7"
@@ -54,6 +55,10 @@ func prepareClient(
 	opts = append(
 		[]Option{
 			WithLogger(slog.New(newLogger(tb, nil))),
+			WithJsonHandlers(json.Marshal, json.Unmarshal),
+			WithHttpClient(http.DefaultClient),
+			WithTimeout(defaultTimeout),
+			WithReadLimit(defaultReadLimit),
 		},
 		opts...,
 	)

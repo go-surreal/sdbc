@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	defaultTimeout   = 1 * time.Minute
 	defaultReadLimit = 1 << (10 * 2) // 1 MB
 )
 
@@ -75,7 +76,7 @@ type (
 
 func applyOptions(opts []Option) *options {
 	out := &options{
-		timeout:       time.Minute,
+		timeout:       defaultTimeout,
 		logger:        slog.New(&emptyLogHandler{}),
 		jsonMarshal:   json.Marshal,
 		jsonUnmarshal: json.Unmarshal,
