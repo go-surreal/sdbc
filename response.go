@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"time"
 
 	"nhooyr.io/websocket"
@@ -14,7 +15,7 @@ const (
 	logArgID = "id"
 )
 
-func (c *Client) subscribe() {
+func (c *Client) subscribe(ctx context.Context) {
 	resChan := make(resultChannel[[]byte])
 
 	c.waitGroup.Add(1)
@@ -24,19 +25,19 @@ func (c *Client) subscribe() {
 		defer close(resChan)
 
 		for {
-			buf, err := c.read(c.connCtx)
+			buf, err := c.read(ctx)
 			if err != nil {
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return
 				}
 
-				if errors.Is(err, io.EOF) || websocket.CloseStatus(err) != -1 {
-					c.logger.Info("Websocket closed.")
+				if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || websocket.CloseStatus(err) != -1 {
+					c.logger.InfoContext(ctx, "Websocket closed.")
 
 					return
 				}
 
-				c.logger.Error("Could not read from websocket.", "error", err)
+				c.logger.ErrorContext(ctx, "Could not read from websocket.", "error", err)
 
 				continue
 			}
@@ -51,6 +52,14 @@ func (c *Client) subscribe() {
 // read reads a single websocket message.
 // It will reuse buffers in between calls to avoid allocations.
 func (c *Client) read(ctx context.Context) ([]byte, error) {
+	if ctx == nil {
+		return nil, ErrContextNil
+	}
+
+	if ctx.Err() != nil {
+		return nil, fmt.Errorf("context done: %w", ctx.Err())
+	}
+
 	var err error
 	defer c.checkWebsocketConn(err)
 
@@ -179,10 +188,10 @@ func (c *Client) handleLiveQuery(res *response) {
 	select {
 
 	case outCh <- res.Result:
-		return
+		c.logger.DebugContext(c.connCtx, "Sent live query result to channel.", logArgID, rawID.ID)
 
 	case <-c.connCtx.Done():
-		return
+		c.logger.DebugContext(c.connCtx, "Context done, ignoring live query result.", logArgID, rawID.ID)
 
 	case <-time.After(c.timeout):
 		c.logger.ErrorContext(c.connCtx, "Timeout while sending result to channel.", logArgID, res.ID)

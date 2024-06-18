@@ -2,8 +2,10 @@ package sdbc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -112,7 +114,7 @@ func (c *Client) readVersion(ctx context.Context) error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
@@ -165,7 +167,7 @@ func (c *Client) openWebsocket() error {
 	c.waitGroup.Add(1)
 	go func() {
 		defer c.waitGroup.Done()
-		c.subscribe()
+		c.subscribe(c.connCtx)
 	}()
 
 	return nil
@@ -203,6 +205,8 @@ var (
 
 	ErrInvalidNamespaceName = fmt.Errorf("invalid namespace name")
 	ErrInvalidDatabaseName  = fmt.Errorf("invalid database name")
+
+	ErrContextNil = errors.New("context is nil")
 )
 
 func (c *Client) init(ctx context.Context, conf Config) error {
@@ -279,7 +283,7 @@ func (c *Client) Close() error {
 	c.logger.Info("Closing client.")
 
 	err := c.conn.Close(websocket.StatusNormalClosure, "closing client")
-	if err != nil {
+	if err != nil && !errors.Is(err, net.ErrClosed) {
 		return fmt.Errorf("could not close websocket connection: %w", err)
 	}
 
