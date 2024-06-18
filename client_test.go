@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -32,7 +32,7 @@ func TestClient(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareClient(ctx, t)
+	client, cleanup := prepareSurreal(ctx, t)
 	defer cleanup()
 
 	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
@@ -53,7 +53,7 @@ func TestClientCRUD(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareClient(ctx, t)
+	client, cleanup := prepareSurreal(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -161,7 +161,7 @@ func TestClientLive(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareClient(ctx, t)
+	client, cleanup := prepareSurreal(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -238,7 +238,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareClient(ctx, t)
+	client, cleanup := prepareSurreal(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -386,7 +386,7 @@ type someModel struct {
 // -- HELPER
 //
 
-func prepareClient(ctx context.Context, tb testing.TB) (*Client, func()) {
+func prepareSurreal(ctx context.Context, tb testing.TB, opts ...Option) (*Client, func()) {
 	tb.Helper()
 
 	username := gofakeit.Username()
@@ -396,19 +396,39 @@ func prepareClient(ctx context.Context, tb testing.TB) (*Client, func()) {
 
 	dbHost, dbCleanup := prepareDatabase(ctx, tb, username, password)
 
+	client, clientCleanup := prepareClient(ctx, tb, dbHost, username, password, namespace, database, opts...)
+
+	cleanup := func() {
+		clientCleanup()
+		dbCleanup()
+	}
+
+	return client, cleanup
+}
+
+func prepareClient(
+	ctx context.Context, tb testing.TB, host, username, password, namespace, database string, opts ...Option,
+) (
+	*Client, func(),
+) {
+	tb.Helper()
+
+	opts = append(
+		[]Option{
+			WithLogger(slog.New(newLogger(tb, nil))),
+		},
+		opts...,
+	)
+
 	client, err := NewClient(ctx,
 		Config{
-			Host:      dbHost,
+			Host:      host,
 			Username:  username,
 			Password:  password,
 			Namespace: namespace,
 			Database:  database,
 		},
-		WithLogger(
-			slog.New(
-				slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
-			),
-		),
+		opts...,
 	)
 	if err != nil {
 		tb.Fatal(err)
@@ -418,8 +438,6 @@ func prepareClient(ctx context.Context, tb testing.TB) (*Client, func()) {
 		if err := client.Close(); err != nil {
 			tb.Fatalf("failed to close client: %s", err.Error())
 		}
-
-		dbCleanup()
 	}
 
 	return client, cleanup
@@ -457,6 +475,7 @@ func prepareDatabase(
 			ContainerRequest: req,
 			Started:          true,
 			Reuse:            true,
+			Logger:           &logger{},
 		},
 	)
 	if err != nil {
@@ -495,4 +514,10 @@ func toSlug(input string) string {
 	slug = strings.ToLower(slug)
 
 	return slug
+}
+
+type logger struct{}
+
+func (l *logger) Printf(format string, v ...any) {
+	slog.Info(fmt.Sprintf(format, v...))
 }

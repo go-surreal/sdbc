@@ -2,8 +2,10 @@ package sdbc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -279,7 +281,7 @@ func (c *Client) Close() error {
 	c.logger.Info("Closing client.")
 
 	err := c.conn.Close(websocket.StatusNormalClosure, "closing client")
-	if err != nil {
+	if err != nil && !errors.Is(err, net.ErrClosed) {
 		return fmt.Errorf("could not close websocket connection: %w", err)
 	}
 

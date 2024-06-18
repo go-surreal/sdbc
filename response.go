@@ -179,10 +179,10 @@ func (c *Client) handleLiveQuery(res *response) {
 	select {
 
 	case outCh <- res.Result:
-		return
+		c.logger.DebugContext(c.connCtx, "Sent live query result to channel.", logArgID, rawID.ID)
 
 	case <-c.connCtx.Done():
-		return
+		c.logger.DebugContext(c.connCtx, "Context done, ignoring live query result.", logArgID, rawID.ID)
 
 	case <-time.After(c.timeout):
 		c.logger.ErrorContext(c.connCtx, "Timeout while sending result to channel.", logArgID, res.ID)
