@@ -5,15 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
-	"regexp"
-	"strings"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v7"
-	"github.com/docker/docker/api/types/container"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -46,6 +43,44 @@ func TestClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestClientReadVersion(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
+		res.Write([]byte("surrealdb-" + surrealDBVersion))
+	}))
+	defer testServer.Close()
+
+	hostUrl, err := url.Parse(testServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := &Client{
+		options: applyOptions(nil),
+		conf: Config{
+			Host: fmt.Sprintf("%s:%s", hostUrl.Hostname(), hostUrl.Port()),
+		},
+	}
+
+	if err = client.readVersion(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
+
+	err = client.readVersion(nil)
+	assert.ErrorContains(t, err, "failed to create request")
+
+	client.options.httpClient = &mockHttpClientWithError{}
+
+	err = client.readVersion(ctx)
+	assert.ErrorContains(t, err, "failed to send request")
 }
 
 func TestClientCRUD(t *testing.T) {
@@ -380,144 +415,4 @@ type someModel struct {
 	Name  string   `json:"name"`
 	Value int      `json:"value"`
 	Slice []string `json:"slice"`
-}
-
-//
-// -- HELPER
-//
-
-func prepareSurreal(ctx context.Context, tb testing.TB, opts ...Option) (*Client, func()) {
-	tb.Helper()
-
-	username := gofakeit.Username()
-	password := gofakeit.Password(true, true, true, true, true, 32)
-	namespace := gofakeit.FirstName()
-	database := gofakeit.LastName()
-
-	dbHost, dbCleanup := prepareDatabase(ctx, tb, username, password)
-
-	client, clientCleanup := prepareClient(ctx, tb, dbHost, username, password, namespace, database, opts...)
-
-	cleanup := func() {
-		clientCleanup()
-		dbCleanup()
-	}
-
-	return client, cleanup
-}
-
-func prepareClient(
-	ctx context.Context, tb testing.TB, host, username, password, namespace, database string, opts ...Option,
-) (
-	*Client, func(),
-) {
-	tb.Helper()
-
-	opts = append(
-		[]Option{
-			WithLogger(slog.New(newLogger(tb, nil))),
-		},
-		opts...,
-	)
-
-	client, err := NewClient(ctx,
-		Config{
-			Host:      host,
-			Username:  username,
-			Password:  password,
-			Namespace: namespace,
-			Database:  database,
-		},
-		opts...,
-	)
-	if err != nil {
-		tb.Fatal(err)
-	}
-
-	cleanup := func() {
-		if err := client.Close(); err != nil {
-			tb.Fatalf("failed to close client: %s", err.Error())
-		}
-	}
-
-	return client, cleanup
-}
-
-func prepareDatabase(
-	ctx context.Context, tb testing.TB, username, password string,
-) (
-	string, func(),
-) {
-	tb.Helper()
-
-	req := testcontainers.ContainerRequest{
-		Name:  "sdbc_" + toSlug(tb.Name()),
-		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
-		Env: map[string]string{
-			"SURREAL_PATH":   "memory",
-			"SURREAL_STRICT": "true",
-			"SURREAL_AUTH":   "true",
-			"SURREAL_USER":   username,
-			"SURREAL_PASS":   password,
-		},
-		Cmd: []string{
-			"start", "--allow-funcs", "--log", "trace",
-		},
-		ExposedPorts: []string{"8000/tcp"},
-		WaitingFor:   wait.ForLog(containerStartedMsg),
-		HostConfigModifier: func(conf *container.HostConfig) {
-			conf.AutoRemove = true
-		},
-	}
-
-	surreal, err := testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-			Reuse:            true,
-			Logger:           &logger{},
-		},
-	)
-	if err != nil {
-		tb.Fatal(err)
-	}
-
-	host, err := surreal.Endpoint(ctx, "")
-	if err != nil {
-		tb.Fatal(err)
-	}
-
-	cleanup := func() {
-		if err := surreal.Terminate(ctx); err != nil {
-			tb.Fatalf("failed to terminate container: %s", err.Error())
-		}
-	}
-
-	return host, cleanup
-}
-
-func toSlug(input string) string {
-	// Remove special characters
-	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
-	if err != nil {
-		panic(err)
-	}
-	processedString := reg.ReplaceAllString(input, " ")
-
-	// Remove leading and trailing spaces
-	processedString = strings.TrimSpace(processedString)
-
-	// Replace spaces with dashes
-	slug := strings.ReplaceAll(processedString, " ", "-")
-
-	// Convert to lowercase
-	slug = strings.ToLower(slug)
-
-	return slug
-}
-
-type logger struct{}
-
-func (l *logger) Printf(format string, v ...any) {
-	slog.Info(fmt.Sprintf(format, v...))
 }

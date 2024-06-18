@@ -3,8 +3,17 @@ package sdbc
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"github.com/brianvoe/gofakeit/v7"
+	"github.com/docker/docker/api/types/container"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
 	"log/slog"
+	"net/http"
+	"regexp"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -14,6 +23,146 @@ func prepare(tb testing.TB) {
 
 	slog.SetDefault(slog.New(newLogger(tb, nil)))
 }
+
+func prepareSurreal(ctx context.Context, tb testing.TB, opts ...Option) (*Client, func()) {
+	tb.Helper()
+
+	username := gofakeit.Username()
+	password := gofakeit.Password(true, true, true, true, true, 32)
+	namespace := gofakeit.FirstName()
+	database := gofakeit.LastName()
+
+	dbHost, dbCleanup := prepareDatabase(ctx, tb, username, password)
+
+	client, clientCleanup := prepareClient(ctx, tb, dbHost, username, password, namespace, database, opts...)
+
+	cleanup := func() {
+		clientCleanup()
+		dbCleanup()
+	}
+
+	return client, cleanup
+}
+
+func prepareClient(
+	ctx context.Context, tb testing.TB, host, username, password, namespace, database string, opts ...Option,
+) (
+	*Client, func(),
+) {
+	tb.Helper()
+
+	opts = append(
+		[]Option{
+			WithLogger(slog.New(newLogger(tb, nil))),
+		},
+		opts...,
+	)
+
+	client, err := NewClient(ctx,
+		Config{
+			Host:      host,
+			Username:  username,
+			Password:  password,
+			Namespace: namespace,
+			Database:  database,
+		},
+		opts...,
+	)
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	cleanup := func() {
+		if err := client.Close(); err != nil {
+			tb.Fatalf("failed to close client: %s", err.Error())
+		}
+	}
+
+	return client, cleanup
+}
+
+func prepareDatabase(
+	ctx context.Context, tb testing.TB, username, password string,
+) (
+	string, func(),
+) {
+	tb.Helper()
+
+	req := testcontainers.ContainerRequest{
+		Name:  "sdbc_" + toSlug(tb.Name()),
+		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
+		Env: map[string]string{
+			"SURREAL_PATH":   "memory",
+			"SURREAL_STRICT": "true",
+			"SURREAL_AUTH":   "true",
+			"SURREAL_USER":   username,
+			"SURREAL_PASS":   password,
+		},
+		Cmd: []string{
+			"start", "--allow-funcs", "--log", "trace",
+		},
+		ExposedPorts: []string{"8000/tcp"},
+		WaitingFor:   wait.ForLog(containerStartedMsg),
+		HostConfigModifier: func(conf *container.HostConfig) {
+			conf.AutoRemove = true
+		},
+	}
+
+	surreal, err := testcontainers.GenericContainer(ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+			Reuse:            true,
+			Logger:           &logger{},
+		},
+	)
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	host, err := surreal.Endpoint(ctx, "")
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	cleanup := func() {
+		if err := surreal.Terminate(ctx); err != nil {
+			tb.Fatalf("failed to terminate container: %s", err.Error())
+		}
+	}
+
+	return host, cleanup
+}
+
+func toSlug(input string) string {
+	// Remove special characters
+	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
+	if err != nil {
+		panic(err)
+	}
+	processedString := reg.ReplaceAllString(input, " ")
+
+	// Remove leading and trailing spaces
+	processedString = strings.TrimSpace(processedString)
+
+	// Replace spaces with dashes
+	slug := strings.ReplaceAll(processedString, " ", "-")
+
+	// Convert to lowercase
+	slug = strings.ToLower(slug)
+
+	return slug
+}
+
+type logger struct{}
+
+func (l *logger) Printf(format string, v ...any) {
+	slog.Info(fmt.Sprintf(format, v...))
+}
+
+//
+// -- LOGGER
+//
 
 func newLogger(tb testing.TB, opts *slog.HandlerOptions) *testLogger {
 	tb.Helper()
@@ -113,4 +262,14 @@ func (l *testLogger) hasRecordMsg(msg string) bool {
 	}
 
 	return false
+}
+
+//
+// -- HTTP CLIENT
+//
+
+type mockHttpClientWithError struct{}
+
+func (m *mockHttpClientWithError) Do(_ *http.Request) (*http.Response, error) {
+	return nil, errors.New("mock http client error")
 }

@@ -114,7 +114,7 @@ func (c *Client) readVersion(ctx context.Context) error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"net/http"
 	"time"
 )
 
@@ -17,6 +18,7 @@ type options struct {
 	jsonMarshal   JsonMarshal
 	jsonUnmarshal JsonUnmarshal
 	readLimit     int64
+	httpClient    HttpClient
 }
 
 type Option func(*options)
@@ -54,6 +56,18 @@ func WithReadLimit(limit int64) Option {
 	}
 }
 
+// WithHttpClient sets a custom http client.
+// If not set, the default http client is used.
+func WithHttpClient(client HttpClient) Option {
+	return func(c *options) {
+		c.httpClient = client
+	}
+}
+
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 type (
 	JsonMarshal   func(val any) ([]byte, error)
 	JsonUnmarshal func(buf []byte, val any) error
@@ -66,6 +80,7 @@ func applyOptions(opts []Option) *options {
 		jsonMarshal:   json.Marshal,
 		jsonUnmarshal: json.Unmarshal,
 		readLimit:     defaultReadLimit,
+		httpClient:    http.DefaultClient,
 	}
 
 	for _, opt := range opts {
