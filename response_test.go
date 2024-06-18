@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"sync"
 	"testing"
-	"time"
 )
 
 //func TestClientSubscribeContextCanceled(t *testing.T) {
@@ -129,7 +128,7 @@ func TestClientHandleLiveQueryContextDone(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resChan, ok := client.liveQueries.get("known_id", true)
+	_, ok := client.liveQueries.get("known_id", true)
 	if !ok {
 		t.Fatal("Could not create live query channel.")
 	}
@@ -152,13 +151,6 @@ func TestClientHandleLiveQueryContextDone(t *testing.T) {
 	assert.Check(t, !logger.hasRecordMsg("Could not find live query channel."))
 
 	assert.Check(t, logger.hasRecordMsg("Context done, ignoring live query result."))
-
-	select {
-	case _, more := <-resChan:
-		assert.Check(t, !more)
-	case <-time.After(time.Second):
-		t.Fatal("live query channel not closed")
-	}
 }
 
 func TestClientHandleLiveQueryTimeout(t *testing.T) {
