@@ -4,7 +4,7 @@ go 1.22
 
 toolchain go1.22.4
 
-retract [v0.1.0, v0.3.0] // only the latest version is supported
+retract [v0.1.0, v0.4.0] // only the latest version is supported
 
 require (
 	github.com/brianvoe/gofakeit/v7 v7.0.3
