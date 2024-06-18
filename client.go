@@ -167,7 +167,7 @@ func (c *Client) openWebsocket() error {
 	c.waitGroup.Add(1)
 	go func() {
 		defer c.waitGroup.Done()
-		c.subscribe()
+		c.subscribe(c.connCtx)
 	}()
 
 	return nil

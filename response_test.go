@@ -3,12 +3,81 @@ package sdbc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/brianvoe/gofakeit/v7"
 	"gotest.tools/v3/assert"
 	"log/slog"
 	"sync"
 	"testing"
+	"time"
 )
+
+func TestClientSubscribeErrorCases(t *testing.T) {
+	t.Parallel()
+	prepare(t)
+
+	ctx := context.Background()
+
+	logger := newLogger(t, &slog.HandlerOptions{
+		Level:     slog.LevelDebug,
+		AddSource: true,
+	})
+
+	username := gofakeit.Username()
+	password := gofakeit.Password(true, true, true, true, true, 32)
+	namespace := gofakeit.FirstName()
+	database := gofakeit.LastName()
+
+	db, dbCleanup := prepareDatabase(ctx, t, username, password)
+	defer dbCleanup()
+
+	client, cleanup := prepareClient(ctx, t, db, username, password, namespace, database, WithLogger(slog.New(logger)))
+	defer cleanup()
+
+	testCtx := &testContext{
+		err: errors.New("test error"),
+	}
+
+	go func() {
+		time.Sleep(time.Millisecond)
+		testCtx.setErr(context.Canceled)
+	}()
+
+	client.subscribe(testCtx)
+
+	assert.Check(t, logger.hasRecordMsg("Could not read from websocket."))
+}
+
+type testContext struct {
+	mu  sync.Mutex
+	err error
+}
+
+func (t *testContext) Deadline() (time.Time, bool) {
+	return time.Time{}, false
+}
+
+func (t *testContext) Done() <-chan struct{} {
+	return make(chan struct{})
+}
+
+func (t *testContext) Err() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	return t.err
+}
+
+func (t *testContext) Value(_ any) any {
+	return nil
+}
+
+func (t *testContext) setErr(err error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.err = err
+}
 
 //func TestClientSubscribeContextCanceled(t *testing.T) {
 //	t.Parallel()
