@@ -1,20 +1,21 @@
 package sdbc
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/fxamacker/cbor/v2"
 )
 
 type request struct {
-	ID     string        `json:"id"`
-	Method string        `json:"method"`
-	Params []interface{} `json:"params"`
+	ID     string `json:"id" cbor:"id"`
+	Method string `json:"method" cbor:"method"`
+	Params []any  `json:"params" cbor:"params"`
 }
 
 type response struct {
 	ID     string          `json:"id"`
-	Result json.RawMessage `json:"result"`
+	Result cbor.RawMessage `json:"result"`
 	Error  *responseError  `json:"error"`
 }
 
@@ -24,7 +25,7 @@ type responseError struct {
 }
 
 type liveQueryID struct {
-	ID string `json:"id"`
+	ID []byte `json:"id"`
 }
 
 //
@@ -39,10 +40,14 @@ type basicResponse[R any] struct {
 
 type duration time.Duration
 
-func (t *duration) UnmarshalJSON(data []byte) error {
+func (t duration) MarshalCBOR() ([]byte, error) {
+	return cbor.Marshal(time.Duration(t).String())
+}
+
+func (t *duration) UnmarshalCBOR(data []byte) error {
 	var str string
 
-	if err := json.Unmarshal(data, &str); err != nil {
+	if err := cbor.Unmarshal(data, &str); err != nil {
 		return fmt.Errorf("could not unmarshal duration: %w", err)
 	}
 

@@ -3,7 +3,6 @@ package sdbc
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/brianvoe/gofakeit/v7"
@@ -56,7 +55,6 @@ func prepareClient(
 	opts = append(
 		[]Option{
 			WithLogger(slog.New(newLogger(tb, nil))),
-			WithJsonHandlers(json.Marshal, json.Unmarshal),
 			WithHttpClient(http.DefaultClient),
 			WithTimeout(defaultTimeout),
 			WithReadLimit(defaultReadLimit),
@@ -87,6 +85,15 @@ func prepareClient(
 	return client, cleanup
 }
 
+type logConsumer struct{}
+
+func (l *logConsumer) Accept(log testcontainers.Log) {
+	slog.Info("surreal",
+		"type", log.LogType,
+		"content", string(log.Content),
+	)
+}
+
 func prepareDatabase(
 	ctx context.Context, tb testing.TB, username, password string,
 ) (
@@ -112,6 +119,11 @@ func prepareDatabase(
 		HostConfigModifier: func(conf *container.HostConfig) {
 			conf.AutoRemove = true
 		},
+		//LogConsumerCfg: &testcontainers.LogConsumerConfig{
+		//	Consumers: []testcontainers.LogConsumer{
+		//		&logConsumer{},
+		//	},
+		//},
 	}
 
 	surreal, err := testcontainers.GenericContainer(ctx,
