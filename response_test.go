@@ -2,7 +2,6 @@ package sdbc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/brianvoe/gofakeit/v7"
 	"gotest.tools/v3/assert"
@@ -134,7 +133,7 @@ func TestClientHandleLiveQueryErrorCases(t *testing.T) {
 
 	assert.Check(t, logger.hasRecordMsg("Could not unmarshal websocket message."))
 
-	result, err := json.Marshal(liveQueryID{ID: "unknown_id"})
+	result, err := client.marshal(liveQueryID{ID: []byte("unknown_id")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +170,7 @@ func TestClientHandleLiveQueryContextDone(t *testing.T) {
 	client, cleanup := prepareClient(ctx, t, db, username, password, namespace, database, WithLogger(slog.New(logger)))
 	defer cleanup()
 
-	result, err := json.Marshal(liveQueryID{ID: "known_id"})
+	result, err := client.marshal(liveQueryID{ID: []byte("known_id")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +217,7 @@ func TestClientHandleLiveQueryTimeout(t *testing.T) {
 	)
 	defer cleanup()
 
-	result, err := json.Marshal(liveQueryID{ID: "known_id"})
+	result, err := client.marshal(liveQueryID{ID: []byte("known_id")})
 	if err != nil {
 		t.Fatal(err)
 	}

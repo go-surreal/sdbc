@@ -2,7 +2,6 @@ package sdbc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -30,6 +29,7 @@ func TestClient(t *testing.T) {
 	ctx := context.Background()
 
 	client, cleanup := prepareSurreal(ctx, t)
+
 	defer cleanup()
 
 	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
@@ -113,7 +113,7 @@ func TestClientCRUD(t *testing.T) {
 
 	var modelCreate []someModel
 
-	err = json.Unmarshal(res, &modelCreate)
+	err = client.unmarshal(res, &modelCreate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,9 +133,13 @@ func TestClientCRUD(t *testing.T) {
 
 	var modelQuery1 []baseResponse[someModel]
 
-	err = json.Unmarshal(res, &modelQuery1)
+	err = client.unmarshal(res, &modelQuery1)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if len(modelQuery1[0].Result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(modelQuery1[0].Result))
 	}
 
 	assert.Check(t, is.DeepEqual(modelCreate[0], modelQuery1[0].Result[0]))
@@ -144,30 +148,30 @@ func TestClientCRUD(t *testing.T) {
 
 	modelIn.Name = "some_other_name"
 
-	res, err = client.Update(ctx, thingSome, modelIn)
+	res, err = client.Update(ctx, modelCreate[0].ID, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var modelUpdate []someModel
+	var modelUpdate someModel
 
-	err = json.Unmarshal(res, &modelUpdate)
+	err = client.unmarshal(res, &modelUpdate)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.Equal(modelIn.Name, modelUpdate[0].Name))
+	assert.Check(t, is.Equal(modelIn.Name, modelUpdate.Name))
 
 	// SELECT
 
-	res, err = client.Select(ctx, modelUpdate[0].ID)
+	res, err = client.Select(ctx, modelUpdate.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var modelSelect someModel
 
-	err = json.Unmarshal(res, &modelSelect)
+	err = client.unmarshal(res, &modelSelect)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,12 +187,12 @@ func TestClientCRUD(t *testing.T) {
 
 	var modelDelete someModel
 
-	err = json.Unmarshal(res, &modelDelete)
+	err = client.unmarshal(res, &modelDelete)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.DeepEqual(modelUpdate[0], modelDelete))
+	assert.Check(t, is.DeepEqual(modelUpdate, modelDelete))
 }
 
 func TestClientLive(t *testing.T) {
@@ -231,15 +235,15 @@ func TestClientLive(t *testing.T) {
 		for liveOut := range live {
 			var liveRes liveResponse[someModel]
 
-			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
-				liveResChan <- nil
+			if err := client.unmarshal(liveOut, &liveRes); err != nil {
 				liveErrChan <- err
+				liveResChan <- nil
 
 				return
 			}
 
-			liveResChan <- &liveRes.Result
 			liveErrChan <- nil
+			liveResChan <- &liveRes.Result
 		}
 	}()
 
@@ -252,7 +256,7 @@ func TestClientLive(t *testing.T) {
 
 	var modelCreate []someModel
 
-	err = json.Unmarshal(res, &modelCreate)
+	err = client.unmarshal(res, &modelCreate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,10 +265,12 @@ func TestClientLive(t *testing.T) {
 	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
 	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
 
-	liveRes := <-liveResChan
-	liveErr := <-liveErrChan
+	if liveErr := <-liveErrChan; liveErr != nil {
+		t.Fatal(liveErr)
+	}
 
-	assert.Check(t, is.Nil(liveErr))
+	liveRes := <-liveResChan
+
 	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
 }
 
@@ -310,7 +316,7 @@ func TestClientLiveFilter(t *testing.T) {
 		for liveOut := range live {
 			var liveRes liveResponse[someModel]
 
-			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
+			if err := client.unmarshal(liveOut, &liveRes); err != nil {
 				liveResChan <- nil
 				liveErrChan <- err
 
@@ -331,7 +337,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	var modelCreate []someModel
 
-	err = json.Unmarshal(res, &modelCreate)
+	err = client.unmarshal(res, &modelCreate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -405,13 +411,14 @@ type baseResponse[T any] struct {
 }
 
 type liveResponse[T any] struct {
-	ID     string `json:"id"`
+	ID     []byte `json:"id"`
 	Action string `json:"action"`
 	Result T      `json:"result"`
 }
 
 type someModel struct {
-	ID    string   `json:"id,omitempty"`
+	//_     struct{} `cbor:",toarray"`
+	ID    ID       `json:"id,omitempty" cbor:",omitempty"`
 	Name  string   `json:"name"`
 	Value int      `json:"value"`
 	Slice []string `json:"slice"`

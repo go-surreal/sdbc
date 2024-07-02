@@ -8,11 +8,13 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/fxamacker/cbor/v2"
 	"nhooyr.io/websocket"
 )
 
@@ -31,6 +33,9 @@ const (
 
 type Client struct {
 	*options
+
+	marshal   Marshal
+	unmarshal Unmarshal
 
 	conf    Config
 	version string
@@ -73,6 +78,8 @@ type Config struct {
 	Database string
 }
 
+type ID []string
+
 // NewClient creates a new client and connects to
 // the database using a websocket connection.
 func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error) {
@@ -80,6 +87,23 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 		options: applyOptions(opts),
 		conf:    conf,
 	}
+
+	tags := cbor.NewTagSet()
+
+	err := tags.Add(cbor.TagOptions{cbor.DecTagRequired, cbor.EncTagRequired}, reflect.TypeOf(ID{}), cborTagRecordID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add tag: %w", err)
+	}
+
+	enc, err := cbor.CanonicalEncOptions().EncModeWithTags(tags)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cbor encoder: %w", err)
+	}
+
+	dec, err := cbor.DecOptions{}.DecModeWithTags(tags)
+
+	client.marshal = enc.Marshal
+	client.unmarshal = dec.Unmarshal
 
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 
@@ -154,6 +178,7 @@ func (c *Client) openWebsocket() error {
 
 	//nolint:bodyclose // connection is closed by the client Close() method
 	conn, _, err := websocket.Dial(c.connCtx, requestURL.String(), &websocket.DialOptions{
+		Subprotocols:    []string{"cbor"},
 		CompressionMode: websocket.CompressionContextTakeover,
 	})
 	if err != nil {
@@ -250,7 +275,7 @@ func (c *Client) init(ctx context.Context, conf Config) error {
 func (c *Client) checkBasicResponse(resp []byte) error {
 	var res []basicResponse[string]
 
-	if err := c.jsonUnmarshal(resp, &res); err != nil {
+	if err := c.unmarshal(resp, &res); err != nil {
 		return fmt.Errorf("could not unmarshal response: %w", err)
 	}
 
