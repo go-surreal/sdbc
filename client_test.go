@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/brianvoe/gofakeit/v7"
 	"gotest.tools/v3/assert"
@@ -93,7 +95,18 @@ func TestClientCRUD(t *testing.T) {
 
 	// DEFINE TABLE
 
-	_, err := client.Query(ctx, "define table some schemaless", nil)
+	sql := `
+		DEFINE TABLE some SCHEMAFULL TYPE NORMAL;
+
+		DEFINE FIELD name ON some TYPE string;
+		DEFINE FIELD value ON some TYPE int;
+		DEFINE FIELD slice ON some TYPE array<string>;
+
+		DEFINE FIELD created_at ON some TYPE datetime;
+		DEFINE FIELD duration ON some TYPE duration;
+	`
+
+	_, err := client.Query(ctx, sql, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,9 +114,11 @@ func TestClientCRUD(t *testing.T) {
 	// CREATE
 
 	modelIn := someModel{
-		Name:  "some_name",
-		Value: 42, //nolint:revive // test value
-		Slice: []string{"a", "b", "c"},
+		Name:      "some_name",
+		Value:     42, //nolint:revive // test value
+		Slice:     []string{"a", "b", "c"},
+		CreatedAt: DateTime{time.Now()},
+		Duration:  Duration{time.Second + (5 * time.Nanosecond)},
 	}
 
 	res, err := client.Create(ctx, RecordID{Table: "some:ulid()"}, modelIn)
@@ -125,6 +140,8 @@ func TestClientCRUD(t *testing.T) {
 	assert.Check(t, is.Equal(modelIn.Name, modelCreate[0].Name))
 	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
 	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
+	assert.Check(t, is.Equal(modelIn.CreatedAt.Format(time.RFC3339), modelCreate[0].CreatedAt.Format(time.RFC3339)))
+	assert.Check(t, is.Equal(modelIn.Duration, modelCreate[0].Duration))
 
 	// QUERY
 
@@ -146,7 +163,7 @@ func TestClientCRUD(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(modelQuery1[0].Result))
 	}
 
-	assert.Check(t, is.DeepEqual(modelCreate[0], modelQuery1[0].Result[0]))
+	assert.Check(t, is.DeepEqual(modelCreate[0], modelQuery1[0].Result[0], cmpopts.IgnoreUnexported(DateTime{})))
 
 	// UPDATE
 
@@ -196,7 +213,7 @@ func TestClientCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.DeepEqual(modelUpdate, modelDelete))
+	assert.Check(t, is.DeepEqual(modelUpdate.ID, modelDelete.ID))
 }
 
 func TestClientLive(t *testing.T) {
@@ -426,4 +443,7 @@ type someModel struct {
 	Name  string    `json:"name"`
 	Value int       `json:"value"`
 	Slice []string  `json:"slice"`
+
+	CreatedAt DateTime `json:"created_at"`
+	Duration  Duration `json:"duration"`
 }

@@ -24,7 +24,7 @@ const (
 
 	livePrefix = "live"
 
-	nilValue = "null"
+	// nilValue = "null".
 
 	randomVariablePrefixLength = 32
 )

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/brianvoe/gofakeit/v7"
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -27,15 +28,10 @@ func prepare(tb testing.TB) {
 func prepareSurreal(ctx context.Context, tb testing.TB, opts ...Option) (*Client, func()) {
 	tb.Helper()
 
-	//username := gofakeit.Username()
-	//password := gofakeit.Password(true, true, true, true, true, 32)
-	//namespace := gofakeit.FirstName()
-	//database := gofakeit.LastName()
-
-	username := "a"
-	password := "b"
-	namespace := "c"
-	database := "d"
+	username := gofakeit.Username()
+	password := gofakeit.Password(true, true, true, true, true, 32)
+	namespace := gofakeit.FirstName()
+	database := gofakeit.LastName()
 
 	tb.Logf("Creating database with: username=%s, password=%s, namespace=%s, database=%s",
 		username, password, namespace, database,

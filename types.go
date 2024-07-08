@@ -8,6 +8,10 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
+//
+// -- ID
+//
+
 type ID interface {
 	id()
 }
@@ -98,7 +102,95 @@ func (id *RecordID) UnmarshalCBOR(data []byte) error {
 	return nil
 }
 
+//
+// -- DATETIME
+//
+
+type DateTime struct {
+	time.Time
+}
+
+func (dt *DateTime) MarshalCBOR() ([]byte, error) {
+	if dt == nil {
+		return cbor.Marshal(nil) // TODO: is this correct?
+	}
+
+	data, err := cbor.Marshal([]int64{dt.Unix(), int64(dt.Nanosecond())})
+	if err != nil {
+		return nil, err
+	}
+
+	return cbor.Marshal(cbor.RawTag{
+		Number:  cborTagDatetime,
+		Content: data,
+	})
+}
+
+func (dt *DateTime) UnmarshalCBOR(data []byte) error {
+	var val []int64
+
+	err := cbor.Unmarshal(data, &val)
+	if err != nil {
+		return err
+	}
+
+	if len(val) != 2 {
+		return fmt.Errorf("expected 2 elements, got %d", len(val))
+	}
+
+	dt.Time = time.Unix(val[0], val[1])
+
+	return nil
+}
+
+//
+// -- DURATION
+//
+
+type Duration struct {
+	time.Duration
+}
+
+func (d *Duration) MarshalCBOR() ([]byte, error) {
+	if d == nil {
+		return cbor.Marshal(nil) // TODO: is this correct?
+	}
+
+	totalSeconds := int64(d.Seconds())
+	totalNanoseconds := d.Nanoseconds()
+	remainingNanoseconds := totalNanoseconds - (totalSeconds * 1e9)
+
+	data, err := cbor.Marshal([]int64{totalSeconds, remainingNanoseconds})
+	if err != nil {
+		return nil, err
+	}
+
+	return cbor.Marshal(cbor.RawTag{
+		Number:  cborTagDuration,
+		Content: data,
+	})
+}
+
+func (d *Duration) UnmarshalCBOR(data []byte) error {
+	var val []int64
+
+	err := cbor.Unmarshal(data, &val)
+	if err != nil {
+		return err
+	}
+
+	if len(val) != 2 {
+		return fmt.Errorf("expected 2 elements, got %d", len(val))
+	}
+
+	d.Duration = time.Duration(val[0])*time.Second + time.Duration(val[1])
+
+	return nil
+}
+
+//
 // -- INTERNAL
+//
 
 type request struct {
 	ID     string `json:"id" cbor:"id"`

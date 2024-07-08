@@ -88,32 +88,15 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 	encTags := cbor.NewTagSet()
 	decTags := cbor.NewTagSet()
 
-	//err := encTags.Add(cbor.TagOptions{cbor.DecTagRequired, cbor.EncTagRequired}, reflect.TypeOf(table("")), cborTagTable)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to add tag: %w", err)
-	//}
-
-	//err := encTags.Add(cbor.TagOptions{cbor.DecTagOptional, cbor.EncTagRequired}, reflect.TypeOf(recordID("")), cborTagRecordID)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to add tag: %w", err)
-	//}
-	//
-	//err = encTags.Add(cbor.TagOptions{cbor.DecTagOptional, cbor.EncTagRequired}, reflect.TypeOf(table("")), cborTagTable)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to add tag: %w", err)
-	//}
-	//
-	//err = decTags.Add(cbor.TagOptions{cbor.DecTagOptional, cbor.EncTagRequired}, reflect.TypeOf(ID{}), cborTagRecordID)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to add tag: %w", err)
-	//}
-
 	enc, err := cbor.EncOptions{}.EncModeWithTags(encTags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cbor encoder: %w", err)
 	}
 
 	dec, err := cbor.DecOptions{}.DecModeWithTags(decTags)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cbor decoder: %w", err)
+	}
 
 	client.marshal = enc.Marshal
 	client.unmarshal = dec.Unmarshal
