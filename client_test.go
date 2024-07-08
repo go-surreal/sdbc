@@ -39,7 +39,7 @@ func TestClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = client.Create(ctx, "test", nil)
+	_, err = client.Create(ctx, RecordID{Table: "test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,17 +106,21 @@ func TestClientCRUD(t *testing.T) {
 		Slice: []string{"a", "b", "c"},
 	}
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, RecordID{Table: "some:ulid()"}, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var modelCreate []someModel
 
-	err = client.unmarshal(res, &modelCreate)
+	var x someModel
+
+	err = client.unmarshal(res, &x)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	modelCreate = append(modelCreate, x)
 
 	assert.Check(t, is.Equal(modelIn.Name, modelCreate[0].Name))
 	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
@@ -249,7 +253,7 @@ func TestClientLive(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, RecordID{Table: thingSome}, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +334,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, RecordID{Table: thingSome}, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,8 +422,8 @@ type liveResponse[T any] struct {
 
 type someModel struct {
 	//_     struct{} `cbor:",toarray"`
-	ID    ID       `json:"id,omitempty" cbor:",omitempty"`
-	Name  string   `json:"name"`
-	Value int      `json:"value"`
-	Slice []string `json:"slice"`
+	ID    *RecordID `json:"id,omitempty" cbor:"id,omitempty"`
+	Name  string    `json:"name"`
+	Value int       `json:"value"`
+	Slice []string  `json:"slice"`
 }

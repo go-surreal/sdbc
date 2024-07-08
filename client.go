@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -78,8 +77,6 @@ type Config struct {
 	Database string
 }
 
-type ID []string
-
 // NewClient creates a new client and connects to
 // the database using a websocket connection.
 func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error) {
@@ -88,19 +85,35 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 		conf:    conf,
 	}
 
-	tags := cbor.NewTagSet()
+	encTags := cbor.NewTagSet()
+	decTags := cbor.NewTagSet()
 
-	err := tags.Add(cbor.TagOptions{cbor.DecTagRequired, cbor.EncTagRequired}, reflect.TypeOf(ID{}), cborTagRecordID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add tag: %w", err)
-	}
+	//err := encTags.Add(cbor.TagOptions{cbor.DecTagRequired, cbor.EncTagRequired}, reflect.TypeOf(table("")), cborTagTable)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to add tag: %w", err)
+	//}
 
-	enc, err := cbor.CanonicalEncOptions().EncModeWithTags(tags)
+	//err := encTags.Add(cbor.TagOptions{cbor.DecTagOptional, cbor.EncTagRequired}, reflect.TypeOf(recordID("")), cborTagRecordID)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to add tag: %w", err)
+	//}
+	//
+	//err = encTags.Add(cbor.TagOptions{cbor.DecTagOptional, cbor.EncTagRequired}, reflect.TypeOf(table("")), cborTagTable)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to add tag: %w", err)
+	//}
+	//
+	//err = decTags.Add(cbor.TagOptions{cbor.DecTagOptional, cbor.EncTagRequired}, reflect.TypeOf(ID{}), cborTagRecordID)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to add tag: %w", err)
+	//}
+
+	enc, err := cbor.EncOptions{}.EncModeWithTags(encTags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cbor encoder: %w", err)
 	}
 
-	dec, err := cbor.DecOptions{}.DecModeWithTags(tags)
+	dec, err := cbor.DecOptions{}.DecModeWithTags(decTags)
 
 	client.marshal = enc.Marshal
 	client.unmarshal = dec.Unmarshal

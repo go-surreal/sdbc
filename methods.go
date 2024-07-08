@@ -236,7 +236,7 @@ func (c *Client) Select(ctx context.Context, thing ID) ([]byte, error) {
 	return res, nil
 }
 
-func (c *Client) Create(ctx context.Context, thing string, data any) ([]byte, error) {
+func (c *Client) Create(ctx context.Context, thing any, data any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodCreate,
