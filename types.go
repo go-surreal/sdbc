@@ -1,7 +1,9 @@
 package sdbc
 
 import (
+	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -12,52 +14,94 @@ import (
 // -- ID
 //
 
-type ID interface {
+const (
+	recordSeparator = ":"
+
+	newRand = "rand()"
+	newULID = "ulid()"
+	newUUID = "uuid()"
+)
+
+type AnyID interface {
 	id()
 }
 
-type StringID string
+type ID struct {
 
-func (StringID) id() {}
+	// table is the name of the table in the database.
+	table string
 
-type IntID int
+	// identifier is the unique identifier of the record.
+	// It can be a string, an integer, an array or an object.
+	identifier any
 
-func (IntID) id() {}
-
-type RecordID struct {
-	_          struct{} `cbor:",toarray"`
-	Table      string
-	Identifier ID
+	// new indicates whether the ID is about to be created.
+	new bool
 }
 
-func (id *RecordID) id() {}
+func newRecord(table string, identifier any) ID {
+	return ID{
+		table:      table,
+		identifier: identifier,
+		new:        true,
+	}
+}
 
-func (id *RecordID) MarshalCBOR() ([]byte, error) {
-	if id.Table == "" {
+func NewRecord(table string) ID {
+	return newRecord(table, newRand)
+}
+
+func NewRecordULID(table string) ID {
+	return newRecord(table, newULID)
+}
+
+func NewRecordUUID(table string) ID {
+	return newRecord(table, newUUID)
+}
+
+func NewRecordCustom(table string, identifier any) ID {
+	return newRecord(table, identifier)
+}
+
+func ParseRecord(record string) (ID, bool) {
+	table, identifier, ok := strings.Cut(record, recordSeparator)
+
+	return ID{
+		table:      table,
+		identifier: identifier,
+	}, ok
+}
+
+func (id *ID) MarshalCBOR() ([]byte, error) {
+	if id.table == "" {
 		return nil, fmt.Errorf("table name is required")
 	}
 
-	if id.Identifier == nil {
-		tagNumber := cborTagTable
-
-		if strings.Contains(id.Table, ":") {
-			tagNumber = cborTagRecordID
-		}
-
-		data, err := cbor.Marshal(id.Table)
+	if id.new {
+		data, err := cbor.Marshal(id.table)
 		if err != nil {
 			return nil, err
 		}
 
-		tag := cbor.RawTag{
-			Number:  uint64(tagNumber),
+		return cbor.Marshal(cbor.RawTag{
+			Number:  cborTagRecordID,
 			Content: data,
-		}
-
-		return cbor.Marshal(tag)
+		})
 	}
 
-	data, err := cbor.Marshal([]any{id.Table, id.Identifier})
+	if id.identifier == nil {
+		data, err := cbor.Marshal(id.table)
+		if err != nil {
+			return nil, err
+		}
+
+		return cbor.Marshal(cbor.RawTag{
+			Number:  cborTagTable,
+			Content: data,
+		})
+	}
+
+	data, err := cbor.Marshal([]any{id.table, id.identifier})
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +112,7 @@ func (id *RecordID) MarshalCBOR() ([]byte, error) {
 	})
 }
 
-func (id *RecordID) UnmarshalCBOR(data []byte) error {
+func (id *ID) UnmarshalCBOR(data []byte) error {
 	var val []any
 
 	err := cbor.Unmarshal(data, &val)
@@ -76,8 +120,12 @@ func (id *RecordID) UnmarshalCBOR(data []byte) error {
 		return err
 	}
 
+	if val == nil {
+		return nil
+	}
+
 	if len(val) != 2 {
-		return fmt.Errorf("expected 2 elements, got %d", len(val))
+		return fmt.Errorf("b expected 2 elements, got %d", len(val))
 	}
 
 	table, ok := val[0].(string)
@@ -85,19 +133,20 @@ func (id *RecordID) UnmarshalCBOR(data []byte) error {
 		return fmt.Errorf("expected string, got %T", val[0])
 	}
 
-	id.Table = table
+	id.table = table
+	id.identifier = val[1]
 
-	switch identifier := val[1].(type) {
-
-	case string:
-		id.Identifier = StringID(identifier)
-
-	case int:
-		id.Identifier = IntID(identifier)
-
-	default:
-		return fmt.Errorf("recordID identifier is of unsupported type %T", val[1])
-	}
+	//switch identifier := val[1].(type) {
+	//
+	//case string:
+	//	id.identifier = StringID(identifier)
+	//
+	//case int:
+	//	id.identifier = IntID(identifier)
+	//
+	//default:
+	//	return fmt.Errorf("recordID identifier is of unsupported type %T", val[1])
+	//}
 
 	return nil
 }
@@ -134,11 +183,26 @@ func (dt *DateTime) UnmarshalCBOR(data []byte) error {
 		return err
 	}
 
-	if len(val) != 2 {
-		return fmt.Errorf("expected 2 elements, got %d", len(val))
+	if len(val) < 1 || len(val) > 2 {
+		return fmt.Errorf("expected 1-2 elements, got %d", len(val))
 	}
 
-	dt.Time = time.Unix(val[0], val[1])
+	if len(val) < 1 {
+		return errors.New("expected at least one element, got none")
+	}
+
+	secs := val[0]
+	nano := int64(0)
+
+	if len(val) > 1 {
+		nano = val[1]
+	}
+
+	if len(val) > 2 {
+		return fmt.Errorf("expected maximum 2 elements, got %d", len(val))
+	}
+
+	dt.Time = time.Unix(secs, nano)
 
 	return nil
 }
@@ -179,13 +243,58 @@ func (d *Duration) UnmarshalCBOR(data []byte) error {
 		return err
 	}
 
-	if len(val) != 2 {
+	var dur time.Duration
+
+	if len(val) > 0 {
+		dur = time.Duration(val[0]) * time.Second
+	}
+
+	if len(val) > 1 {
+		dur += time.Duration(val[1])
+	}
+
+	if len(val) > 2 {
 		return fmt.Errorf("expected 2 elements, got %d", len(val))
 	}
 
-	d.Duration = time.Duration(val[0])*time.Second + time.Duration(val[1])
+	d.Duration = dur
 
 	return nil
+}
+
+//
+// -- DECIMAL
+//
+
+type Decimal struct {
+	float64
+}
+
+func (d *Decimal) MarshalCBOR() ([]byte, error) {
+	if d == nil {
+		return cbor.Marshal(nil) // TODO: is this correct?
+	}
+
+	return cbor.Marshal(cbor.RawTag{
+		Number:  cborTagDecimal,
+		Content: []byte(fmt.Sprintf("%f", d.float64)),
+	})
+}
+
+//
+// -- BIG INT
+//
+
+type BigInt struct {
+	big.Int
+}
+
+//
+// -- BIG FLOAT
+//
+
+type BigFloat struct {
+	big.Float
 }
 
 //

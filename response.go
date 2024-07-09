@@ -124,8 +124,18 @@ func (c *Client) handleMessage(data []byte) {
 
 	if err := c.unmarshal(data, &res); err != nil {
 		c.logger.ErrorContext(c.connCtx, "Could not unmarshal websocket message.",
-			"msg", string(data),
+			"data", string(data),
 			"error", err,
+		)
+
+		return
+	}
+
+	if res.Error != nil {
+		c.logger.ErrorContext(c.connCtx, "Received error message.",
+			"id", res.ID,
+			"code", res.Error.Code,
+			"message", res.Error.Message,
 		)
 
 		return
@@ -134,7 +144,6 @@ func (c *Client) handleMessage(data []byte) {
 	c.logger.DebugContext(c.connCtx, "Received message.",
 		"id", res.ID,
 		"result", string(res.Result),
-		"error", res.Error,
 	)
 
 	if res.ID == "" {
@@ -176,7 +185,7 @@ func (c *Client) handleLiveQuery(res *response) {
 	var rawID liveQueryID
 
 	if err := c.unmarshal(res.Result, &rawID); err != nil {
-		c.logger.ErrorContext(c.connCtx, "Could not unmarshal websocket message.", "error", err)
+		c.logger.ErrorContext(c.connCtx, "xCould not unmarshal websocket message.", "error", err)
 
 		return
 	}

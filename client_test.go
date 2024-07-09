@@ -126,27 +126,23 @@ func TestClientCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var modelCreate []someModel
+	var modelCreate someModel
 
-	var x someModel
-
-	err = client.unmarshal(res, &x)
+	err = client.unmarshal(res, &modelCreate)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	modelCreate = append(modelCreate, x)
-
-	assert.Check(t, is.Equal(modelIn.Name, modelCreate[0].Name))
-	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
-	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
-	assert.Check(t, is.Equal(modelIn.CreatedAt.Format(time.RFC3339), modelCreate[0].CreatedAt.Format(time.RFC3339)))
-	assert.Check(t, is.Equal(modelIn.Duration, modelCreate[0].Duration))
+	assert.Check(t, is.Equal(modelIn.Name, modelCreate.Name))
+	assert.Check(t, is.Equal(modelIn.Value, modelCreate.Value))
+	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate.Slice))
+	assert.Check(t, is.Equal(modelIn.CreatedAt.Format(time.RFC3339), modelCreate.CreatedAt.Format(time.RFC3339)))
+	assert.Check(t, is.Equal(modelIn.Duration, modelCreate.Duration))
 
 	// QUERY
 
 	res, err = client.Query(ctx, "select * from some where id = $id", map[string]any{
-		"id": modelCreate[0].ID,
+		"id": modelCreate.ID,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -163,13 +159,13 @@ func TestClientCRUD(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(modelQuery1[0].Result))
 	}
 
-	assert.Check(t, is.DeepEqual(modelCreate[0], modelQuery1[0].Result[0], cmpopts.IgnoreUnexported(DateTime{})))
+	assert.Check(t, is.DeepEqual(modelCreate, modelQuery1[0].Result[0], cmpopts.IgnoreUnexported(DateTime{})))
 
 	// UPDATE
 
 	modelIn.Name = "some_other_name"
 
-	res, err = client.Update(ctx, modelCreate[0].ID, modelIn)
+	res, err = client.Update(ctx, modelCreate.ID, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +197,7 @@ func TestClientCRUD(t *testing.T) {
 
 	// DELETE
 
-	res, err = client.Delete(ctx, modelCreate[0].ID)
+	res, err = client.Delete(ctx, modelCreate.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

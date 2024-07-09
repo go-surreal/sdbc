@@ -1,5 +1,7 @@
 package sdbc
 
+import "github.com/fxamacker/cbor/v2"
+
 // IANA spec: https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml
 // SurrealDB spec: https://surrealdb.com/docs/surrealdb/integration/cbor
 
@@ -65,3 +67,36 @@ const (
 	// (Tag 88, Tag 89, Tag 90, Tag 91, Tag 92, Tag 93 or Tag 94).
 	// cborTagGeometryCollection = 94.
 )
+
+var encodedNull = []byte{0xf6}
+
+type ZeroAsNone[T comparable] struct {
+	Value T
+}
+
+func (n *ZeroAsNone[T]) MarshalCBOR() ([]byte, error) {
+	var zero T
+
+	if n.Value == zero {
+		return cbor.Marshal(cbor.RawTag{
+			Number:  CBORTagNone,
+			Content: encodedNull,
+		})
+	}
+
+	return cbor.Marshal(n.Value)
+}
+
+func (n *ZeroAsNone[T]) UnmarshalCBOR(data []byte) error {
+	var tag cbor.RawTag
+
+	if err := cbor.Unmarshal(data, &tag); err != nil {
+		return err
+	}
+
+	if tag.Number == CBORTagNone {
+		return nil
+	}
+
+	return cbor.Unmarshal(tag.Content, &n.Value)
+}
