@@ -27,7 +27,6 @@ type AnyID interface {
 }
 
 type ID struct {
-
 	// table is the name of the table in the database.
 	table string
 
@@ -37,6 +36,10 @@ type ID struct {
 
 	// new indicates whether the ID is about to be created.
 	new bool
+}
+
+func (id *ID) String() string {
+	return fmt.Sprint(id.identifier)
 }
 
 func newRecord(table string, identifier any) ID {
@@ -78,7 +81,13 @@ func (id *ID) MarshalCBOR() ([]byte, error) {
 	}
 
 	if id.new {
-		data, err := cbor.Marshal(id.table)
+		raw := id.table
+
+		if id.identifier != nil {
+			raw += recordSeparator + fmt.Sprint(id.identifier)
+		}
+
+		data, err := cbor.Marshal(raw)
 		if err != nil {
 			return nil, err
 		}

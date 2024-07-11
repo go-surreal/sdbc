@@ -41,7 +41,7 @@ func TestClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = client.Create(ctx, RecordID{Table: "test"}, nil)
+	_, err = client.Create(ctx, NewRecord("test"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestClientCRUD(t *testing.T) {
 		Duration:  Duration{time.Second + (5 * time.Nanosecond)},
 	}
 
-	res, err := client.Create(ctx, RecordID{Table: "some:ulid()"}, modelIn)
+	res, err := client.Create(ctx, NewRecordULID(thingSome), modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,13 +159,13 @@ func TestClientCRUD(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(modelQuery1[0].Result))
 	}
 
-	assert.Check(t, is.DeepEqual(modelCreate, modelQuery1[0].Result[0], cmpopts.IgnoreUnexported(DateTime{})))
+	assert.Check(t, is.DeepEqual(modelCreate, modelQuery1[0].Result[0], cmpopts.IgnoreUnexported(ID{}, DateTime{})))
 
 	// UPDATE
 
 	modelIn.Name = "some_other_name"
 
-	res, err = client.Update(ctx, modelCreate.ID, modelIn)
+	res, err = client.Update(ctx, *modelCreate.ID, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func TestClientCRUD(t *testing.T) {
 
 	// SELECT
 
-	res, err = client.Select(ctx, modelUpdate.ID)
+	res, err = client.Select(ctx, *modelUpdate.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +197,7 @@ func TestClientCRUD(t *testing.T) {
 
 	// DELETE
 
-	res, err = client.Delete(ctx, modelCreate.ID)
+	res, err = client.Delete(ctx, *modelCreate.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +209,7 @@ func TestClientCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.DeepEqual(modelUpdate.ID, modelDelete.ID))
+	assert.Check(t, is.DeepEqual(modelUpdate.ID, modelDelete.ID, cmpopts.IgnoreUnexported(ID{})))
 }
 
 func TestClientLive(t *testing.T) {
@@ -266,7 +266,7 @@ func TestClientLive(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, RecordID{Table: thingSome}, modelIn)
+	res, err := client.Create(ctx, NewRecord(thingSome), modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -347,7 +347,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, RecordID{Table: thingSome}, modelIn)
+	res, err := client.Create(ctx, NewRecord(thingSome), modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,10 +435,10 @@ type liveResponse[T any] struct {
 
 type someModel struct {
 	//_     struct{} `cbor:",toarray"`
-	ID    *RecordID `json:"id,omitempty" cbor:"id,omitempty"`
-	Name  string    `json:"name"`
-	Value int       `json:"value"`
-	Slice []string  `json:"slice"`
+	ID    *ID      `cbor:"id,omitempty"`
+	Name  string   `json:"name"`
+	Value int      `json:"value"`
+	Slice []string `json:"slice"`
 
 	CreatedAt DateTime `json:"created_at"`
 	Duration  Duration `json:"duration"`
