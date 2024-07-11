@@ -11,10 +11,11 @@
       "schedule": ["after 7am before 9am"]
     },
     {
-      "matchDatasources": ["golang-version"],
-      "groupName": "go version update",
+      "matchDatasources": ["golang-version", "go", "asdf"],
+      "matchPackagePatterns": ["^golang$"],
+      "groupName": "go version updates",
       "labels": ["cc | build"],
-      "commitMessage": "build: update go version {{{commitMessageExtra}}}",
+      "commitMessage": "build(go): update language version {{{commitMessageExtra}}}",
       "schedule": ["after 7am before 9am"]
     },
     {
