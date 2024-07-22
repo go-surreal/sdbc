@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/docker/docker/api/types/container"
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	surrealDBVersion    = "2.0.0-alpha.3"
+	surrealDBVersion    = "2.0.0-alpha.6"
 	containerStartedMsg = "Started web server on "
 )
 
@@ -36,7 +37,7 @@ func TestClient(t *testing.T) {
 
 	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
 
-	_, err := client.Query(ctx, "define table test schemaless", nil)
+	_, err := client.Query(ctx, "define table test schemaless;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +58,7 @@ func TestClientCRUD(t *testing.T) {
 
 	// DEFINE TABLE
 
-	_, err := client.Query(ctx, "define table some schemaless", nil)
+	_, err := client.Query(ctx, "define table some schemaless;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +89,7 @@ func TestClientCRUD(t *testing.T) {
 
 	// QUERY
 
-	res, err = client.Query(ctx, "select * from some where id = $id", map[string]any{
+	res, err = client.Query(ctx, "select * from some where id = $id;", map[string]any{
 		"id": modelCreate[0].ID,
 	})
 	if err != nil {
@@ -165,7 +166,7 @@ func TestClientLive(t *testing.T) {
 
 	// DEFINE TABLE
 
-	_, err := client.Query(ctx, "define table some schemaless", nil)
+	_, err := client.Query(ctx, "define table some schemaless;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +181,7 @@ func TestClientLive(t *testing.T) {
 
 	// LIVE QUERY
 
-	live, err := client.Live(ctx, "select * from some", nil)
+	live, err := client.Live(ctx, "select * from some;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +258,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// LIVE QUERY
 
-	live, err := client.Live(ctx, "select * from some where name in $a", map[string]any{
+	live, err := client.Live(ctx, "select * from some where name in $a;", map[string]any{
 		"a": []string{"some_name", "some_other_name"},
 	})
 	if err != nil {
@@ -304,11 +305,23 @@ func TestClientLiveFilter(t *testing.T) {
 	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
 	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
 
-	liveRes := <-liveResChan
-	liveErr := <-liveErrChan
+	select {
 
-	assert.Check(t, is.Nil(liveErr))
-	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
+	case liveRes := <-liveResChan:
+		assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
+
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout")
+	}
+
+	select {
+
+	case liveErr := <-liveErrChan:
+		assert.Check(t, is.Nil(liveErr))
+
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout")
+	}
 }
 
 //
@@ -345,6 +358,10 @@ func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
 	password := gofakeit.Password(true, true, true, true, true, 32)
 	namespace := gofakeit.FirstName()
 	database := gofakeit.LastName()
+
+	// Testcontainers environment seems to have a problem with the ampersand character,
+	// possibly due to it being a special character and not correctly escaped.
+	password = strings.ReplaceAll(password, "&", "-")
 
 	req := testcontainers.ContainerRequest{
 		Name:  "sdbc_" + toSlug(tb.Name()),
