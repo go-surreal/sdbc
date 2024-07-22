@@ -185,7 +185,7 @@ func (c *Client) handleLiveQuery(res *response) {
 	var rawID liveQueryID
 
 	if err := c.unmarshal(res.Result, &rawID); err != nil {
-		c.logger.ErrorContext(c.connCtx, "xCould not unmarshal websocket message.", "error", err)
+		c.logger.ErrorContext(c.connCtx, "Could not unmarshal websocket message.", "error", err)
 
 		return
 	}

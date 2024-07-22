@@ -220,12 +220,12 @@ func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 }
 
 // Select a table or record from the database.
-func (c *Client) Select(ctx context.Context, thing ID) ([]byte, error) {
+func (c *Client) Select(ctx context.Context, id *ID) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodSelect,
 			Params: []any{
-				thing,
+				id,
 			},
 		},
 	)
@@ -236,12 +236,12 @@ func (c *Client) Select(ctx context.Context, thing ID) ([]byte, error) {
 	return res, nil
 }
 
-func (c *Client) Create(ctx context.Context, thing ID, data any) ([]byte, error) {
+func (c *Client) Create(ctx context.Context, id RecordID, data any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodCreate,
 			Params: []any{
-				thing,
+				id,
 				data,
 			},
 		},
@@ -254,12 +254,12 @@ func (c *Client) Create(ctx context.Context, thing ID, data any) ([]byte, error)
 }
 
 // Update a table or record in the database like a PUT request.
-func (c *Client) Update(ctx context.Context, thing ID, data any) ([]byte, error) {
+func (c *Client) Update(ctx context.Context, id *ID, data any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodUpdate,
 			Params: []any{
-				thing,
+				id,
 				data,
 			},
 		},
@@ -272,12 +272,12 @@ func (c *Client) Update(ctx context.Context, thing ID, data any) ([]byte, error)
 }
 
 // Delete a table or a row from the database like a DELETE request.
-func (c *Client) Delete(ctx context.Context, thing ID) ([]byte, error) {
+func (c *Client) Delete(ctx context.Context, id *ID) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodDelete,
 			Params: []any{
-				thing,
+				id,
 			},
 		},
 	)

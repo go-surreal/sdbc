@@ -290,6 +290,14 @@ func (c *Client) DatabaseVersion() string {
 	return c.version
 }
 
+func (c *Client) Marshal(val any) ([]byte, error) {
+	return c.marshal(val)
+}
+
+func (c *Client) Unmarshal(data []byte, val any) error {
+	return c.unmarshal(data, val)
+}
+
 // Close closes the client and the websocket connection.
 // Furthermore, it cleans up all idle goroutines.
 func (c *Client) Close() error {

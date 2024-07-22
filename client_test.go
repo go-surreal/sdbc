@@ -41,7 +41,7 @@ func TestClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = client.Create(ctx, NewRecord("test"), nil)
+	_, err = client.Create(ctx, NewID("test"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestClientCRUD(t *testing.T) {
 		Duration:  Duration{time.Second + (5 * time.Nanosecond)},
 	}
 
-	res, err := client.Create(ctx, NewRecordULID(thingSome), modelIn)
+	res, err := client.Create(ctx, NewULID(thingSome), modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestClientCRUD(t *testing.T) {
 
 	modelIn.Name = "some_other_name"
 
-	res, err = client.Update(ctx, *modelCreate.ID, modelIn)
+	res, err = client.Update(ctx, modelCreate.ID, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func TestClientCRUD(t *testing.T) {
 
 	// SELECT
 
-	res, err = client.Select(ctx, *modelUpdate.ID)
+	res, err = client.Select(ctx, modelUpdate.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +197,7 @@ func TestClientCRUD(t *testing.T) {
 
 	// DELETE
 
-	res, err = client.Delete(ctx, *modelCreate.ID)
+	res, err = client.Delete(ctx, modelCreate.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,21 +266,21 @@ func TestClientLive(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, NewRecord(thingSome), modelIn)
+	res, err := client.Create(ctx, NewID(thingSome), modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var modelCreate []someModel
+	var modelCreate someModel
 
 	err = client.unmarshal(res, &modelCreate)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.Equal(modelIn.Name, modelCreate[0].Name))
-	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
-	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
+	assert.Check(t, is.Equal(modelIn.Name, modelCreate.Name))
+	assert.Check(t, is.Equal(modelIn.Value, modelCreate.Value))
+	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate.Slice))
 
 	if liveErr := <-liveErrChan; liveErr != nil {
 		t.Fatal(liveErr)
@@ -288,7 +288,7 @@ func TestClientLive(t *testing.T) {
 
 	liveRes := <-liveResChan
 
-	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
+	assert.Check(t, is.DeepEqual(modelCreate, *liveRes, cmpopts.IgnoreUnexported(ID{})))
 }
 
 func TestClientLiveFilter(t *testing.T) {
@@ -347,27 +347,27 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, NewRecord(thingSome), modelIn)
+	res, err := client.Create(ctx, NewID(thingSome), modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var modelCreate []someModel
+	var modelCreate someModel
 
 	err = client.unmarshal(res, &modelCreate)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.Equal(modelIn.Name, modelCreate[0].Name))
-	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
-	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
+	assert.Check(t, is.Equal(modelIn.Name, modelCreate.Name))
+	assert.Check(t, is.Equal(modelIn.Value, modelCreate.Value))
+	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate.Slice))
 
 	liveRes := <-liveResChan
 	liveErr := <-liveErrChan
 
 	assert.Check(t, is.Nil(liveErr))
-	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
+	assert.Check(t, is.DeepEqual(modelCreate, *liveRes, cmpopts.IgnoreUnexported(ID{})))
 }
 
 func TestInvalidNamespaceAndDatabaseNames(t *testing.T) {

@@ -22,10 +22,6 @@ const (
 	newUUID = "uuid()"
 )
 
-type AnyID interface {
-	id()
-}
-
 type ID struct {
 	// table is the name of the table in the database.
 	table string
@@ -33,69 +29,17 @@ type ID struct {
 	// identifier is the unique identifier of the record.
 	// It can be a string, an integer, an array or an object.
 	identifier any
-
-	// new indicates whether the ID is about to be created.
-	new bool
 }
+
+func (id *ID) recordID() {}
 
 func (id *ID) String() string {
-	return fmt.Sprint(id.identifier)
-}
-
-func newRecord(table string, identifier any) ID {
-	return ID{
-		table:      table,
-		identifier: identifier,
-		new:        true,
-	}
-}
-
-func NewRecord(table string) ID {
-	return newRecord(table, newRand)
-}
-
-func NewRecordULID(table string) ID {
-	return newRecord(table, newULID)
-}
-
-func NewRecordUUID(table string) ID {
-	return newRecord(table, newUUID)
-}
-
-func NewRecordCustom(table string, identifier any) ID {
-	return newRecord(table, identifier)
-}
-
-func ParseRecord(record string) (ID, bool) {
-	table, identifier, ok := strings.Cut(record, recordSeparator)
-
-	return ID{
-		table:      table,
-		identifier: identifier,
-	}, ok
+	return fmt.Sprintf("%s%s%s", id.table, recordSeparator, id.identifier)
 }
 
 func (id *ID) MarshalCBOR() ([]byte, error) {
 	if id.table == "" {
 		return nil, fmt.Errorf("table name is required")
-	}
-
-	if id.new {
-		raw := id.table
-
-		if id.identifier != nil {
-			raw += recordSeparator + fmt.Sprint(id.identifier)
-		}
-
-		data, err := cbor.Marshal(raw)
-		if err != nil {
-			return nil, err
-		}
-
-		return cbor.Marshal(cbor.RawTag{
-			Number:  cborTagRecordID,
-			Content: data,
-		})
 	}
 
 	if id.identifier == nil {
@@ -158,6 +102,74 @@ func (id *ID) UnmarshalCBOR(data []byte) error {
 	//}
 
 	return nil
+}
+
+//
+// -- RECORD ID
+//
+
+type RecordID interface {
+	recordID()
+}
+
+type newRecordID struct {
+	table       string
+	constructor string
+}
+
+func (id *newRecordID) recordID() {}
+
+func (id *newRecordID) MarshalCBOR() ([]byte, error) {
+	data, err := cbor.Marshal(id.table + recordSeparator + id.constructor)
+	if err != nil {
+		return nil, err
+	}
+
+	return cbor.Marshal(cbor.RawTag{
+		Number:  cborTagRecordID,
+		Content: data,
+	})
+}
+
+func (id *newRecordID) UnmarshalCBOR(_ []byte) error {
+	return fmt.Errorf("unmarshal not supported")
+}
+
+func NewID(table string) RecordID {
+	return &newRecordID{
+		table:       table,
+		constructor: newRand,
+	}
+}
+
+func NewULID(table string) RecordID {
+	return &newRecordID{
+		table:       table,
+		constructor: newULID,
+	}
+}
+
+func NewUUID(table string) RecordID {
+	return &newRecordID{
+		table:       table,
+		constructor: newUUID,
+	}
+}
+
+func MakeID(table string, identifier any) *ID {
+	return &ID{
+		table:      table,
+		identifier: identifier,
+	}
+}
+
+func ParseRecord(record string) (*ID, bool) {
+	table, identifier, ok := strings.Cut(record, recordSeparator)
+
+	return &ID{
+		table:      table,
+		identifier: identifier,
+	}, ok
 }
 
 //
