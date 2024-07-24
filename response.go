@@ -131,9 +131,8 @@ func (c *Client) handleMessage(data []byte) {
 		return
 	}
 
-	if res.Error != nil {
+	if res.ID == "" && res.Error != nil {
 		c.logger.ErrorContext(c.connCtx, "Received error message.",
-			"id", res.ID,
 			"code", res.Error.Code,
 			"message", res.Error.Message,
 		)

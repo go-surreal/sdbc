@@ -19,7 +19,7 @@ const (
 
 	newRand = "rand()"
 	newULID = "ulid()"
-	newUUID = "uuid()"
+	newUUID = "uuid()" // TODO: schema type for ID field and cbor tag
 )
 
 type ID struct {
