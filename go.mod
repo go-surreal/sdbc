@@ -7,9 +7,10 @@ toolchain go1.22.5
 retract [v0.1.0, v0.3.0] // only the latest version is supported
 
 require (
-	github.com/brianvoe/gofakeit/v7 v7.0.3
+	github.com/brianvoe/gofakeit/v7 v7.0.4
 	github.com/docker/docker v27.0.3+incompatible
 	github.com/fxamacker/cbor/v2 v2.7.0
+	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/testcontainers/testcontainers-go v0.32.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
@@ -36,7 +37,6 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
