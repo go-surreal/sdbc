@@ -1,6 +1,10 @@
 package sdbc
 
-import "github.com/fxamacker/cbor/v2"
+import (
+	"fmt"
+
+	"github.com/fxamacker/cbor/v2"
+)
 
 // IANA spec: https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml
 // SurrealDB spec: https://surrealdb.com/docs/surrealdb/integration/cbor
@@ -68,7 +72,9 @@ const (
 	// cborTagGeometryCollection = 94.
 )
 
-var encodedNull = []byte{0xf6}
+var (
+	encodedNull = []byte{0xf6}
+)
 
 type ZeroAsNone[T comparable] struct {
 	Value T
@@ -78,25 +84,39 @@ func (n *ZeroAsNone[T]) MarshalCBOR() ([]byte, error) {
 	var zero T
 
 	if n.Value == zero {
-		return cbor.Marshal(cbor.RawTag{
+		data, err := cbor.Marshal(cbor.RawTag{
 			Number:  CBORTagNone,
 			Content: encodedNull,
 		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal none: %w", err)
+		}
+
+		return data, nil
 	}
 
-	return cbor.Marshal(n.Value)
+	data, err := cbor.Marshal(n.Value)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal value: %w", err)
+	}
+
+	return data, nil
 }
 
 func (n *ZeroAsNone[T]) UnmarshalCBOR(data []byte) error {
 	var tag cbor.RawTag
 
 	if err := cbor.Unmarshal(data, &tag); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal tag: %w", err)
 	}
 
 	if tag.Number == CBORTagNone {
 		return nil
 	}
 
-	return cbor.Unmarshal(tag.Content, &n.Value)
+	if err := cbor.Unmarshal(tag.Content, &n.Value); err != nil {
+		return fmt.Errorf("failed to unmarshal value: %w", err)
+	}
+
+	return nil
 }

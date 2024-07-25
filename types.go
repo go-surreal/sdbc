@@ -15,11 +15,22 @@ import (
 //
 
 const (
+	expectedArrayLength = 2
+	nanosecond          = 1e9
+)
+
+const (
 	recordSeparator = ":"
 
 	newRand = "rand()"
 	newULID = "ulid()"
 	newUUID = "uuid()" // TODO: schema type for ID field and cbor tag
+)
+
+var (
+	ErrTableNameRequired     = errors.New("table name is required")
+	ErrDataInvalid           = errors.New("data is invalid")
+	ErrUnmarshalNotSupported = errors.New("unmarshal not supported")
 )
 
 type ID struct {
@@ -39,30 +50,40 @@ func (id *ID) String() string {
 
 func (id *ID) MarshalCBOR() ([]byte, error) {
 	if id.table == "" {
-		return nil, fmt.Errorf("table name is required")
+		return nil, ErrTableNameRequired
 	}
 
 	if id.identifier == nil {
-		data, err := cbor.Marshal(id.table)
+		content, err := cbor.Marshal(id.table)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to marshal table: %w", err)
 		}
 
-		return cbor.Marshal(cbor.RawTag{
+		data, err := cbor.Marshal(cbor.RawTag{
 			Number:  cborTagTable,
-			Content: data,
+			Content: content,
 		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal raw tag: %w", err)
+		}
+
+		return data, nil
 	}
 
-	data, err := cbor.Marshal([]any{id.table, id.identifier})
+	content, err := cbor.Marshal([]any{id.table, id.identifier})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal recordID: %w", err)
 	}
 
-	return cbor.Marshal(cbor.RawTag{
+	data, err := cbor.Marshal(cbor.RawTag{
 		Number:  cborTagRecordID,
-		Content: data,
+		Content: content,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal raw tag: %w", err)
+	}
+
+	return data, nil
 }
 
 func (id *ID) UnmarshalCBOR(data []byte) error {
@@ -70,20 +91,20 @@ func (id *ID) UnmarshalCBOR(data []byte) error {
 
 	err := cbor.Unmarshal(data, &val)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal recordID: %w", err)
 	}
 
 	if val == nil {
 		return nil
 	}
 
-	if len(val) != 2 {
-		return fmt.Errorf("b expected 2 elements, got %d", len(val))
+	if len(val) != expectedArrayLength {
+		return fmt.Errorf("%w: expected %d elements, got %d", ErrDataInvalid, expectedArrayLength, len(val))
 	}
 
 	table, ok := val[0].(string)
 	if !ok {
-		return fmt.Errorf("expected string, got %T", val[0])
+		return fmt.Errorf("%w: expected string, got %T", ErrDataInvalid, val[0])
 	}
 
 	id.table = table
@@ -120,19 +141,24 @@ type newRecordID struct {
 func (id *newRecordID) recordID() {}
 
 func (id *newRecordID) MarshalCBOR() ([]byte, error) {
-	data, err := cbor.Marshal(id.table + recordSeparator + id.constructor)
+	content, err := cbor.Marshal(id.table + recordSeparator + id.constructor)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal recordID: %w", err)
 	}
 
-	return cbor.Marshal(cbor.RawTag{
+	data, err := cbor.Marshal(cbor.RawTag{
 		Number:  cborTagRecordID,
-		Content: data,
+		Content: content,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal raw tag: %w", err)
+	}
+
+	return data, nil
 }
 
 func (id *newRecordID) UnmarshalCBOR(_ []byte) error {
-	return fmt.Errorf("unmarshal not supported")
+	return ErrUnmarshalNotSupported
 }
 
 func NewID(table string) RecordID {
@@ -182,34 +208,43 @@ type DateTime struct {
 
 func (dt *DateTime) MarshalCBOR() ([]byte, error) {
 	if dt == nil {
-		return cbor.Marshal(nil) // TODO: is this correct?
+		data, err := cbor.Marshal(nil) // TODO: is this correct?
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal nil: %w", err)
+		}
+
+		return data, nil
 	}
 
-	data, err := cbor.Marshal([]int64{dt.Unix(), int64(dt.Nanosecond())})
+	content, err := cbor.Marshal([]int64{dt.Unix(), int64(dt.Nanosecond())})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal datetime slice: %w", err)
 	}
 
-	return cbor.Marshal(cbor.RawTag{
+	data, err := cbor.Marshal(cbor.RawTag{
 		Number:  cborTagDatetime,
-		Content: data,
+		Content: content,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal raw tag: %w", err)
+	}
+
+	return data, nil
 }
 
 func (dt *DateTime) UnmarshalCBOR(data []byte) error {
 	var val []int64
 
-	err := cbor.Unmarshal(data, &val)
-	if err != nil {
-		return err
+	if err := cbor.Unmarshal(data, &val); err != nil {
+		return fmt.Errorf("failed to unmarshal datetime: %w", err)
 	}
 
-	if len(val) < 1 || len(val) > 2 {
-		return fmt.Errorf("expected 1-2 elements, got %d", len(val))
+	if len(val) < 1 || len(val) > expectedArrayLength {
+		return fmt.Errorf("%w: expected 1-2 elements, got %d", ErrDataInvalid, len(val))
 	}
 
 	if len(val) < 1 {
-		return errors.New("expected at least one element, got none")
+		return fmt.Errorf("%w: expected at least one element, got none", ErrDataInvalid)
 	}
 
 	secs := val[0]
@@ -219,8 +254,8 @@ func (dt *DateTime) UnmarshalCBOR(data []byte) error {
 		nano = val[1]
 	}
 
-	if len(val) > 2 {
-		return fmt.Errorf("expected maximum 2 elements, got %d", len(val))
+	if len(val) > expectedArrayLength {
+		return fmt.Errorf("%w: expected at most %d elements, got %d", ErrDataInvalid, expectedArrayLength, len(val))
 	}
 
 	dt.Time = time.Unix(secs, nano)
@@ -238,30 +273,39 @@ type Duration struct {
 
 func (d *Duration) MarshalCBOR() ([]byte, error) {
 	if d == nil {
-		return cbor.Marshal(nil) // TODO: is this correct?
+		data, err := cbor.Marshal(nil) // TODO: is this correct?
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal nil: %w", err)
+		}
+
+		return data, nil
 	}
 
 	totalSeconds := int64(d.Seconds())
 	totalNanoseconds := d.Nanoseconds()
-	remainingNanoseconds := totalNanoseconds - (totalSeconds * 1e9)
+	remainingNanoseconds := totalNanoseconds - (totalSeconds * nanosecond)
 
-	data, err := cbor.Marshal([]int64{totalSeconds, remainingNanoseconds})
+	content, err := cbor.Marshal([]int64{totalSeconds, remainingNanoseconds})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal duration slice: %w", err)
 	}
 
-	return cbor.Marshal(cbor.RawTag{
+	data, err := cbor.Marshal(cbor.RawTag{
 		Number:  cborTagDuration,
-		Content: data,
+		Content: content,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal raw tag: %w", err)
+	}
+
+	return data, nil
 }
 
 func (d *Duration) UnmarshalCBOR(data []byte) error {
 	var val []int64
 
-	err := cbor.Unmarshal(data, &val)
-	if err != nil {
-		return err
+	if err := cbor.Unmarshal(data, &val); err != nil {
+		return fmt.Errorf("failed to unmarshal duration: %w", err)
 	}
 
 	var dur time.Duration
@@ -274,8 +318,8 @@ func (d *Duration) UnmarshalCBOR(data []byte) error {
 		dur += time.Duration(val[1])
 	}
 
-	if len(val) > 2 {
-		return fmt.Errorf("expected 2 elements, got %d", len(val))
+	if len(val) > expectedArrayLength {
+		return fmt.Errorf("%w: expected at most %d elements, got %d", ErrDataInvalid, expectedArrayLength, len(val))
 	}
 
 	d.Duration = dur
@@ -293,13 +337,28 @@ type Decimal struct {
 
 func (d *Decimal) MarshalCBOR() ([]byte, error) {
 	if d == nil {
-		return cbor.Marshal(nil) // TODO: is this correct?
+		data, err := cbor.Marshal(nil) // TODO: is this correct?
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal nil: %w", err)
+		}
+
+		return data, nil
 	}
 
-	return cbor.Marshal(cbor.RawTag{
+	content, err := cbor.Marshal(d.float64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal float64: %w", err)
+	}
+
+	data, err := cbor.Marshal(cbor.RawTag{
 		Number:  cborTagDecimal,
-		Content: []byte(fmt.Sprintf("%f", d.float64)),
+		Content: content,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal raw tag: %w", err)
+	}
+
+	return data, nil
 }
 
 //
@@ -356,7 +415,12 @@ type basicResponse[R any] struct {
 type duration time.Duration
 
 func (t duration) MarshalCBOR() ([]byte, error) {
-	return cbor.Marshal(time.Duration(t).String())
+	data, err := cbor.Marshal(time.Duration(t).String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal duration: %w", err)
+	}
+
+	return data, nil
 }
 
 func (t *duration) UnmarshalCBOR(data []byte) error {
