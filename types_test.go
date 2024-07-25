@@ -31,11 +31,21 @@ func TestDurationErrorCases(t *testing.T) {
 
 	var dur duration
 
-	err := cbor.Unmarshal([]byte("123"), &dur)
+	data, err := cbor.Marshal([]byte("123"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = cbor.Unmarshal(data, &dur)
 
 	assert.ErrorContains(t, err, "could not unmarshal duration")
 
-	err = cbor.Unmarshal([]byte("invalid value"), &dur)
+	data, err = cbor.Marshal("invalid value")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = cbor.Unmarshal(data, &dur)
 
 	assert.ErrorContains(t, err, "could not parse duration")
 }
