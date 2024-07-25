@@ -108,13 +108,3 @@ for instructions on how to get started.
 ## License
 
 SDBC is licensed under the [MIT License](LICENSE).
-
-## References
-
-- https://github.com/surrealdb/surrealdb.go/issues/137
-- https://github.com/fxamacker/cbor?tab=readme-ov-file#quick-start
-- https://surrealdb.com/blog/understanding-cbor
-- https://deno.land/x/surrealdb@v1.0.0-beta.9/src/library/cbor/index.ts?source
-- https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml
-- https://github.com/surrealdb/surrealdb/blob/af80c1ccce062df76c008e219a399ff9f86e138a/core/src/rpc/format/cbor/convert.rs
-- https://surrealdb.com/docs/surrealdb/integration/rpc#select

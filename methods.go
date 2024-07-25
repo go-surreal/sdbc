@@ -24,8 +24,6 @@ const (
 
 	livePrefix = "live"
 
-	// nilValue = "null".
-
 	randomVariablePrefixLength = 32
 )
 
@@ -65,10 +63,6 @@ func (c *Client) use(ctx context.Context, namespace, database string) error {
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
-
-	//if string(res) != nilValue {
-	//	return fmt.Errorf("%w: %s", ErrCouldNotSelectDatabase, string(res))
-	//}
 
 	return nil
 }

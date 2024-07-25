@@ -89,15 +89,6 @@ func prepareClient(
 	return client, cleanup
 }
 
-type logConsumer struct{}
-
-func (l *logConsumer) Accept(log testcontainers.Log) {
-	slog.Info("surreal",
-		"type", log.LogType,
-		"content", string(log.Content),
-	)
-}
-
 func prepareDatabase(
 	ctx context.Context, tb testing.TB, username, password string,
 ) (
@@ -123,11 +114,6 @@ func prepareDatabase(
 		HostConfigModifier: func(conf *container.HostConfig) {
 			conf.AutoRemove = true
 		},
-		//LogConsumerCfg: &testcontainers.LogConsumerConfig{
-		//	Consumers: []testcontainers.LogConsumer{
-		//		&logConsumer{},
-		//	},
-		//},
 	}
 
 	surreal, err := testcontainers.GenericContainer(ctx,
