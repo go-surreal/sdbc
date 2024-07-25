@@ -72,9 +72,7 @@ const (
 	// cborTagGeometryCollection = 94.
 )
 
-var (
-	encodedNull = []byte{0xf6}
-)
+var encodedNull = []byte{0xf6}
 
 type ZeroAsNone[T comparable] struct {
 	Value T

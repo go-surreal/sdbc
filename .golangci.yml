@@ -311,7 +311,7 @@ linters-settings:
     var-require-single-var: false
     # Require the use of grouped global 'var' declarations.
     # Default: false
-    var-require-grouping: true
+    var-require-grouping: false
 
   misspell:
     ignore-words: []
