@@ -2,7 +2,6 @@ package sdbc
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
@@ -14,12 +13,10 @@ const (
 )
 
 type options struct {
-	timeout       time.Duration
-	logger        *slog.Logger
-	jsonMarshal   JsonMarshal
-	jsonUnmarshal JsonUnmarshal
-	readLimit     int64
-	httpClient    HttpClient
+	timeout    time.Duration
+	logger     *slog.Logger
+	readLimit  int64
+	httpClient HttpClient
 }
 
 type Option func(*options)
@@ -37,15 +34,6 @@ func WithTimeout(timeout time.Duration) Option {
 func WithLogger(logger *slog.Logger) Option {
 	return func(c *options) {
 		c.logger = logger
-	}
-}
-
-// WithJsonHandlers sets custom json marshal and unmarshal functions.
-// If not set, the default json marshal and unmarshal functions are used.
-func WithJsonHandlers(marshal JsonMarshal, unmarshal JsonUnmarshal) Option {
-	return func(c *options) {
-		c.jsonMarshal = marshal
-		c.jsonUnmarshal = unmarshal
 	}
 }
 
@@ -70,18 +58,16 @@ type HttpClient interface {
 }
 
 type (
-	JsonMarshal   func(val any) ([]byte, error)
-	JsonUnmarshal func(buf []byte, val any) error
+	Marshal   func(val any) ([]byte, error)
+	Unmarshal func(buf []byte, val any) error
 )
 
 func applyOptions(opts []Option) *options {
 	out := &options{
-		timeout:       defaultTimeout,
-		logger:        slog.New(&emptyLogHandler{}),
-		jsonMarshal:   json.Marshal,
-		jsonUnmarshal: json.Unmarshal,
-		readLimit:     defaultReadLimit,
-		httpClient:    http.DefaultClient,
+		timeout:    defaultTimeout,
+		logger:     slog.New(&emptyLogHandler{}),
+		readLimit:  defaultReadLimit,
+		httpClient: http.DefaultClient,
 	}
 
 	for _, opt := range opts {

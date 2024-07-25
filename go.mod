@@ -9,6 +9,7 @@ retract [v0.1.0, v0.3.0] // only the latest version is supported
 require (
 	github.com/brianvoe/gofakeit/v7 v7.0.3
 	github.com/docker/docker v27.0.3+incompatible
+	github.com/fxamacker/cbor/v2 v2.4.0
 	github.com/google/uuid v1.6.0
 	github.com/testcontainers/testcontainers-go v0.32.0
 	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8
@@ -54,6 +55,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
 	go.opentelemetry.io/otel v1.24.0 // indirect

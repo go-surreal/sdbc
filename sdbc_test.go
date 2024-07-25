@@ -3,7 +3,6 @@ package sdbc
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/brianvoe/gofakeit/v7"
@@ -34,6 +33,10 @@ func prepareSurreal(ctx context.Context, tb testing.TB, opts ...Option) (*Client
 	namespace := gofakeit.FirstName()
 	database := gofakeit.LastName()
 
+	tb.Logf("Creating database with: username=%s, password=%s, namespace=%s, database=%s",
+		username, password, namespace, database,
+	)
+
 	dbHost, dbCleanup := prepareDatabase(ctx, tb, username, password)
 
 	client, clientCleanup := prepareClient(ctx, tb, dbHost, username, password, namespace, database, opts...)
@@ -56,7 +59,6 @@ func prepareClient(
 	opts = append(
 		[]Option{
 			WithLogger(slog.New(newLogger(tb, nil))),
-			WithJsonHandlers(json.Marshal, json.Unmarshal),
 			WithHttpClient(http.DefaultClient),
 			WithTimeout(defaultTimeout),
 			WithReadLimit(defaultReadLimit),

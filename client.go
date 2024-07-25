@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fxamacker/cbor/v2"
 	"nhooyr.io/websocket"
 )
 
@@ -31,6 +32,9 @@ const (
 
 type Client struct {
 	*options
+
+	marshal   Marshal
+	unmarshal Unmarshal
 
 	conf    Config
 	version string
@@ -80,6 +84,22 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 		options: applyOptions(opts),
 		conf:    conf,
 	}
+
+	encTags := cbor.NewTagSet()
+	decTags := cbor.NewTagSet()
+
+	enc, err := cbor.EncOptions{}.EncModeWithTags(encTags)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cbor encoder: %w", err)
+	}
+
+	dec, err := cbor.DecOptions{}.DecModeWithTags(decTags)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cbor decoder: %w", err)
+	}
+
+	client.marshal = enc.Marshal
+	client.unmarshal = dec.Unmarshal
 
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 
@@ -154,6 +174,7 @@ func (c *Client) openWebsocket() error {
 
 	//nolint:bodyclose // connection is closed by the client Close() method
 	conn, _, err := websocket.Dial(c.connCtx, requestURL.String(), &websocket.DialOptions{
+		Subprotocols:    []string{"cbor"},
 		CompressionMode: websocket.CompressionContextTakeover,
 	})
 	if err != nil {
@@ -250,7 +271,7 @@ func (c *Client) init(ctx context.Context, conf Config) error {
 func (c *Client) checkBasicResponse(resp []byte) error {
 	var res []basicResponse[string]
 
-	if err := c.jsonUnmarshal(resp, &res); err != nil {
+	if err := c.unmarshal(resp, &res); err != nil {
 		return fmt.Errorf("could not unmarshal response: %w", err)
 	}
 
@@ -267,6 +288,14 @@ func (c *Client) checkBasicResponse(resp []byte) error {
 
 func (c *Client) DatabaseVersion() string {
 	return c.version
+}
+
+func (c *Client) Marshal(val any) ([]byte, error) {
+	return c.marshal(val)
+}
+
+func (c *Client) Unmarshal(data []byte, val any) error {
+	return c.unmarshal(data, val)
 }
 
 // Close closes the client and the websocket connection.
