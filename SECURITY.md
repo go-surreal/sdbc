@@ -12,9 +12,9 @@ As long as there is no major release, we will only provide support for the most 
 Our library is built using Golang, specifically version 1.21.1, and we aim to stay as close
 to the current version of Go as possible to ensure security and compatibility.
 
-As of now, this library only supports Go 1.21.x. This will most likely be the case until version 1.22.0 is released.
+As of now, this library only supports Go 1.22.x. This will most likely be the case until version 1.23.0 is released.
 In the future we will try to follow the official compatibility policy of Go, which means that we will provide support
-for the recent two releases. These versions will be 1.22.x and 1.21.x.
+for the recent two releases. These versions will be 1.23.x and 1.22.x.
 
 Older versions will not receive security updates or fixes.
 

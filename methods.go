@@ -24,8 +24,6 @@ const (
 
 	livePrefix = "live"
 
-	nilValue = "null"
-
 	randomVariablePrefixLength = 32
 )
 
@@ -53,7 +51,7 @@ func (c *Client) signIn(ctx context.Context, username, password string) error {
 
 // use is a method to select the namespace and table for the connection.
 func (c *Client) use(ctx context.Context, namespace, database string) error {
-	res, err := c.send(ctx,
+	_, err := c.send(ctx,
 		request{
 			Method: methodUse,
 			Params: []any{
@@ -64,10 +62,6 @@ func (c *Client) use(ctx context.Context, namespace, database string) error {
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
-	}
-
-	if string(res) != nilValue {
-		return fmt.Errorf("%w: %s", ErrCouldNotSelectDatabase, string(res))
 	}
 
 	return nil
@@ -138,22 +132,22 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
-	var res []basicResponse[string]
+	var res []basicResponse[[]byte]
 
-	if err := c.jsonUnmarshal(raw, &res); err != nil {
+	if err := c.unmarshal(raw, &res); err != nil {
 		return nil, fmt.Errorf("could not unmarshal response: %w", err)
 	}
 
 	// The last response contains the live key.
 	queryIndex := len(params)
 
-	if len(res) < 1 || res[queryIndex].Result == "" {
+	if len(res) < 1 || string(res[queryIndex].Result) == "" {
 		return nil, ErrEmptyResponse
 	}
 
 	liveKey := res[queryIndex].Result
 
-	liveChan, ok := c.liveQueries.get(liveKey, true)
+	liveChan, ok := c.liveQueries.get(string(liveKey), true)
 	if !ok {
 		return nil, ErrCouldNotGetLiveQueryChannel
 	}
@@ -198,7 +192,7 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 				c.logger.ErrorContext(killCtx, "Could not remove param.", "key", newKey, "error", err)
 			}
 		}
-	}(liveKey)
+	}(string(liveKey))
 
 	return liveChan, nil
 }
@@ -220,12 +214,12 @@ func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 }
 
 // Select a table or record from the database.
-func (c *Client) Select(ctx context.Context, thing string) ([]byte, error) {
+func (c *Client) Select(ctx context.Context, id *ID) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodSelect,
 			Params: []any{
-				thing,
+				id,
 			},
 		},
 	)
@@ -236,12 +230,12 @@ func (c *Client) Select(ctx context.Context, thing string) ([]byte, error) {
 	return res, nil
 }
 
-func (c *Client) Create(ctx context.Context, thing string, data any) ([]byte, error) {
+func (c *Client) Create(ctx context.Context, id RecordID, data any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodCreate,
 			Params: []any{
-				thing,
+				id,
 				data,
 			},
 		},
@@ -254,12 +248,12 @@ func (c *Client) Create(ctx context.Context, thing string, data any) ([]byte, er
 }
 
 // Update a table or record in the database like a PUT request.
-func (c *Client) Update(ctx context.Context, thing string, data any) ([]byte, error) {
+func (c *Client) Update(ctx context.Context, id *ID, data any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodUpdate,
 			Params: []any{
-				thing,
+				id,
 				data,
 			},
 		},
@@ -272,12 +266,12 @@ func (c *Client) Update(ctx context.Context, thing string, data any) ([]byte, er
 }
 
 // Delete a table or a row from the database like a DELETE request.
-func (c *Client) Delete(ctx context.Context, thing string) ([]byte, error) {
+func (c *Client) Delete(ctx context.Context, id *ID) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodDelete,
 			Params: []any{
-				thing,
+				id,
 			},
 		},
 	)
@@ -340,12 +334,12 @@ func (c *Client) write(ctx context.Context, req request) error {
 	var err error
 	defer c.checkWebsocketConn(err)
 
-	data, err := c.jsonMarshal(req)
+	data, err := c.marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	err = c.conn.Write(ctx, websocket.MessageText, data)
+	err = c.conn.Write(ctx, websocket.MessageBinary, data)
 	if err != nil {
 		return fmt.Errorf("failed to write message: %w", err)
 	}

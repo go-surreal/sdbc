@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"gotest.tools/v3/assert"
 	"testing"
+	"time"
 )
 
 func TestStoresGetInvalidAssert(t *testing.T) {
@@ -25,6 +26,18 @@ func TestRequestsUnknownKey(t *testing.T) {
 	var req requests
 
 	_, ok := req.get("unknown key")
+
+	assert.Check(t, !ok)
+}
+
+func TestRequestsInvalidTypeCast(t *testing.T) {
+	t.Parallel()
+
+	var req requests
+
+	req.store.Store("some_key", "invalid value")
+
+	_, ok := req.get("some_key")
 
 	assert.Check(t, !ok)
 }
@@ -58,4 +71,21 @@ func TestLiveQueriesGetErrorCases(t *testing.T) {
 	lq.store.Store("some_key", "invalid value")
 	_, ok = lq.get("some_key", false)
 	assert.Check(t, !ok)
+}
+
+func TestLiveQueriesDel(t *testing.T) {
+	t.Parallel()
+
+	var lq liveQueries
+
+	ch, ok := lq.get("some_key", true)
+	assert.Check(t, ok)
+
+	lq.del("some_key")
+
+	select {
+	case <-ch:
+	case <-time.After(1 * time.Second):
+		t.Fatal("channel not closed")
+	}
 }

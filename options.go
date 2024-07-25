@@ -2,21 +2,21 @@ package sdbc
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
+	"net/http"
 	"time"
 )
 
 const (
+	defaultTimeout   = 1 * time.Minute
 	defaultReadLimit = 1 << (10 * 2) // 1 MB
 )
 
 type options struct {
-	timeout       time.Duration
-	logger        *slog.Logger
-	jsonMarshal   JsonMarshal
-	jsonUnmarshal JsonUnmarshal
-	readLimit     int64
+	timeout    time.Duration
+	logger     *slog.Logger
+	readLimit  int64
+	httpClient HttpClient
 }
 
 type Option func(*options)
@@ -37,15 +37,6 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// WithJsonHandlers sets custom json marshal and unmarshal functions.
-// If not set, the default json marshal and unmarshal functions are used.
-func WithJsonHandlers(marshal JsonMarshal, unmarshal JsonUnmarshal) Option {
-	return func(c *options) {
-		c.jsonMarshal = marshal
-		c.jsonUnmarshal = unmarshal
-	}
-}
-
 // WithReadLimit sets a custom read limit (in bytes) for the websocket connection.
 // If not set, the default read limit is 1 MB.
 func WithReadLimit(limit int64) Option {
@@ -54,18 +45,29 @@ func WithReadLimit(limit int64) Option {
 	}
 }
 
+// WithHttpClient sets a custom http client.
+// If not set, the default http client is used.
+func WithHttpClient(client HttpClient) Option {
+	return func(c *options) {
+		c.httpClient = client
+	}
+}
+
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 type (
-	JsonMarshal   func(val any) ([]byte, error)
-	JsonUnmarshal func(buf []byte, val any) error
+	Marshal   func(val any) ([]byte, error)
+	Unmarshal func(buf []byte, val any) error
 )
 
 func applyOptions(opts []Option) *options {
 	out := &options{
-		timeout:       time.Minute,
-		logger:        slog.New(&emptyLogHandler{}),
-		jsonMarshal:   json.Marshal,
-		jsonUnmarshal: json.Unmarshal,
-		readLimit:     defaultReadLimit,
+		timeout:    defaultTimeout,
+		logger:     slog.New(&emptyLogHandler{}),
+		readLimit:  defaultReadLimit,
+		httpClient: http.DefaultClient,
 	}
 
 	for _, opt := range opts {
