@@ -8,14 +8,14 @@ retract [v0.1.0, v0.5.0] // only the latest version is supported
 
 require (
 	github.com/brianvoe/gofakeit/v7 v7.0.4
-	github.com/docker/docker v27.0.3+incompatible
+	github.com/docker/docker v27.1.1+incompatible
 	github.com/fxamacker/cbor/v2 v2.7.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/testcontainers/testcontainers-go v0.32.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	gotest.tools/v3 v3.5.1
-	nhooyr.io/websocket v1.8.10
+	nhooyr.io/websocket v1.8.11
 )
 
 require (
