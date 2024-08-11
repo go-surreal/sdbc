@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/coder/websocket"
 	"github.com/fxamacker/cbor/v2"
-	"nhooyr.io/websocket"
 )
 
 const (
@@ -312,7 +312,8 @@ func (c *Client) Close() error {
 	c.logger.Info("Closing client.")
 
 	err := c.conn.Close(websocket.StatusNormalClosure, "closing client")
-	if err != nil && !errors.Is(err, net.ErrClosed) {
+	if err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, io.EOF) {
+		// TODO: is it really properly closed despite the io.EOF error?
 		return fmt.Errorf("could not close websocket connection: %w", err)
 	}
 
