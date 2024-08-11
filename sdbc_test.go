@@ -29,7 +29,7 @@ func prepareSurreal(ctx context.Context, tb testing.TB, opts ...Option) (*Client
 	tb.Helper()
 
 	username := gofakeit.Username()
-	password := gofakeit.Password(true, true, true, true, true, 32)
+	password := gofakeit.Password(true, true, true, true, false, 32)
 	namespace := gofakeit.FirstName()
 	database := gofakeit.LastName()
 
