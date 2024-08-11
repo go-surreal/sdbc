@@ -30,6 +30,15 @@ const (
 	versionPrefix = "surrealdb-"
 )
 
+var (
+	regexName = regexp.MustCompile("^[A-Za-z0-9_]+$")
+
+	ErrInvalidNamespaceName = fmt.Errorf("invalid namespace name")
+	ErrInvalidDatabaseName  = fmt.Errorf("invalid database name")
+
+	ErrContextNil = errors.New("context is nil")
+)
+
 type Client struct {
 	*options
 
@@ -220,15 +229,6 @@ func (c *Client) checkWebsocketConn(err error) {
 		}
 	}
 }
-
-var (
-	regexName = regexp.MustCompile("^[A-Za-z0-9_]+$")
-
-	ErrInvalidNamespaceName = fmt.Errorf("invalid namespace name")
-	ErrInvalidDatabaseName  = fmt.Errorf("invalid database name")
-
-	ErrContextNil = errors.New("context is nil")
-)
 
 func (c *Client) init(ctx context.Context, conf Config) error {
 	if !regexName.MatchString(conf.Namespace) {

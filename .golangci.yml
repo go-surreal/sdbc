@@ -29,6 +29,9 @@ linters:
     # Checks function and package cyclomatic complexity.
     - cyclop
 
+    # A Go linter that checks package imports are in a list of acceptable packages.
+    - depguard
+
     # Check for two durations multiplied together.
     - durationcheck
 
@@ -220,6 +223,22 @@ linters-settings:
     max-complexity: 17
     package-average: 0.0
     skip-tests: false
+
+  depguard:
+    rules:
+      main:
+        allow:
+          - $gostd
+          - github.com/coder/websocket
+        deny:
+          - pkg: github.com/pkg/errors
+            desc: "Use errors (std) instead"
+          - pkg: golang.org/x/net/context
+            desc: "Use context (std) instead"
+          - pkg: "github.com/stretchr/testify"
+            desc: "Use gotest.tools/v3 instead"
+          - pkg: "nhooyr.io/websocket"
+            desc: "Moved to github.com/coder/websocket"
 
   errcheck:
     check-type-assertions: true
