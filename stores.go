@@ -3,6 +3,7 @@ package sdbc
 import (
 	"bytes"
 	"crypto/rand"
+	"fmt"
 	"sync"
 )
 
@@ -172,5 +173,5 @@ func newRequestKey() string {
 		return "" // TODO: error?
 	}
 
-	return string(key)
+	return fmt.Sprintf("%X-%X-%X-%X-%X", key[0:4], key[4:6], key[6:8], key[8:10], key[10:])
 }
