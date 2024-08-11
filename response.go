@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"nhooyr.io/websocket"
+	"github.com/coder/websocket"
 )
 
 const (
@@ -68,7 +68,7 @@ func (c *Client) read(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("failed to get reader: %w", err)
 	}
 
-	if msgType != websocket.MessageText {
+	if msgType != websocket.MessageBinary {
 		return nil, fmt.Errorf("%w, got %v", ErrExpectedTextMessage, msgType)
 	}
 
@@ -122,8 +122,20 @@ func (c *Client) handleMessages(resultCh resultChannel[[]byte]) {
 func (c *Client) handleMessage(data []byte) {
 	var res *response
 
-	if err := c.jsonUnmarshal(data, &res); err != nil {
-		c.logger.ErrorContext(c.connCtx, "Could not unmarshal websocket message.", "error", err)
+	if err := c.unmarshal(data, &res); err != nil {
+		c.logger.ErrorContext(c.connCtx, "Could not unmarshal websocket message.",
+			"data", string(data),
+			"error", err,
+		)
+
+		return
+	}
+
+	if res.ID == "" && res.Error != nil {
+		c.logger.ErrorContext(c.connCtx, "Received error message.",
+			"code", res.Error.Code,
+			"message", res.Error.Message,
+		)
 
 		return
 	}
@@ -131,7 +143,6 @@ func (c *Client) handleMessage(data []byte) {
 	c.logger.DebugContext(c.connCtx, "Received message.",
 		"id", res.ID,
 		"result", string(res.Result),
-		"error", res.Error,
 	)
 
 	if res.ID == "" {
@@ -172,13 +183,13 @@ func (c *Client) handleResult(res *response) {
 func (c *Client) handleLiveQuery(res *response) {
 	var rawID liveQueryID
 
-	if err := c.jsonUnmarshal(res.Result, &rawID); err != nil {
+	if err := c.unmarshal(res.Result, &rawID); err != nil {
 		c.logger.ErrorContext(c.connCtx, "Could not unmarshal websocket message.", "error", err)
 
 		return
 	}
 
-	outCh, ok := c.liveQueries.get(rawID.ID, false)
+	outCh, ok := c.liveQueries.get(string(rawID.ID), false)
 	if !ok {
 		c.logger.ErrorContext(c.connCtx, "Could not find live query channel.", logArgID, rawID.ID)
 
