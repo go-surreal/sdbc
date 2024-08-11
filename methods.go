@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"strings"
 
-	"nhooyr.io/websocket"
+	"github.com/coder/websocket"
 
 	"golang.org/x/exp/maps"
 )

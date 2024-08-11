@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"nhooyr.io/websocket"
+	"github.com/coder/websocket"
 )
 
 var (
