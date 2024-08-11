@@ -33,8 +33,8 @@ const (
 var (
 	regexName = regexp.MustCompile("^[A-Za-z0-9_]+$")
 
-	ErrInvalidNamespaceName = fmt.Errorf("invalid namespace name")
-	ErrInvalidDatabaseName  = fmt.Errorf("invalid database name")
+	ErrInvalidNamespaceName = errors.New("invalid namespace name")
+	ErrInvalidDatabaseName  = errors.New("invalid database name")
 
 	ErrContextNil = errors.New("context is nil")
 )

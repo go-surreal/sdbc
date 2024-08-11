@@ -188,7 +188,7 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 		}
 
 		for newKey := range params {
-			if _, err := c.Query(killCtx, fmt.Sprintf("REMOVE PARAM $%s", newKey), nil); err != nil {
+			if _, err := c.Query(killCtx, fmt.Sprintf("REMOVE PARAM $%s;", newKey), nil); err != nil {
 				c.logger.ErrorContext(killCtx, "Could not remove param.", "key", newKey, "error", err)
 			}
 		}
