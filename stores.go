@@ -2,9 +2,8 @@ package sdbc
 
 import (
 	"bytes"
+	"crypto/rand"
 	"sync"
-
-	"github.com/google/uuid"
 )
 
 //
@@ -53,12 +52,12 @@ type requests struct {
 }
 
 func (r *requests) prepare() (string, <-chan *output) {
-	key := uuid.New()
+	key := newRequestKey() // TODO: generate multiple keys beforehand and reuse by using sync.Pool?
 	ch := make(chan *output)
 
-	r.store.Store(key.String(), ch)
+	r.store.Store(key, ch)
 
-	return key.String(), ch
+	return key, ch
 }
 
 func (r *requests) get(key string) (chan<- *output, bool) {
@@ -156,4 +155,22 @@ func (l *liveQueries) reset() {
 
 		return true
 	})
+}
+
+//
+// -- HELPER
+//
+
+const (
+	requestKeyLength = 16
+)
+
+func newRequestKey() string {
+	key := make([]byte, requestKeyLength)
+
+	if _, err := rand.Read(key); err != nil {
+		return "" // TODO: error?
+	}
+
+	return string(key)
 }

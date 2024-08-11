@@ -230,6 +230,7 @@ linters-settings:
         allow:
           - $gostd
           - github.com/coder/websocket
+          - github.com/fxamacker/cbor/v2
         deny:
           - pkg: github.com/pkg/errors
             desc: "Use errors (std) instead"
