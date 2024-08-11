@@ -48,28 +48,28 @@ const (
 	// Custom Geometries:.
 
 	// A Geometry Point represented by a two-value array containing a lat (float) and lon (float).
-	// cborTagGeometryPoint = 88.
+	cborTagGeoPoint = 88.
 
 	// A Geometry Line represented by an array with two or more points (Tag 88).
-	// cborTagGeometryLine = 89.
+	cborTagGeoLine = 89.
 
 	// A Geometry Polygon represented by an array with one or more closed lines (Tag 89).
 	// If the lines are not closed, meaning that the first and last point are equal,
-	// then SurrealDB will automatically suffix the line with it's first point.
-	// cborTagGeometryPolygon = 90.
+	// then SurrealDB will automatically suffix the line with its first point.
+	cborTagGeoPolygon = 90.
 
 	// A Geometry MultiPoint represented by an array with one or more points (Tag 88).
-	// cborTagGeometryMultiPoint = 91.
+	cborTagGeoMultiPoint = 91.
 
 	// A Geometry MultiLine represented by an array with one or more lines (Tag 89).
-	// cborTagGeometryMultiLine = 92.
+	cborTagGeoMultiLine = 92.
 
 	// A Geometry MultiPolygon represented by an array with one or more polygons (Tag 90).
-	// cborTagGeometryMultiPolygon = 93.
+	cborTagGeoMultiPolygon = 93.
 
 	// A Geometry Collection represented by an array with one or more geometry values
 	// (Tag 88, Tag 89, Tag 90, Tag 91, Tag 92, Tag 93 or Tag 94).
-	// cborTagGeometryCollection = 94.
+	cborTagGeoCollection = 94.
 )
 
 var encodedNull = []byte{0xf6}
