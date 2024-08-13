@@ -212,7 +212,7 @@ func TestClientHandleLiveQueryTimeout(t *testing.T) {
 	})
 
 	client, cleanup := prepareSurreal(ctx, t,
-		WithTimeout(0),
+		WithTimeout(time.Second),
 		WithLogger(slog.New(logger)),
 	)
 	defer cleanup()
