@@ -17,6 +17,7 @@ jobs:
   sync:
     name: Sync
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
 
       - name: Checkout
@@ -50,6 +51,9 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: false # golangci-lint does not yet work with go 1.23
+
     steps:
 
       - name: Checkout
@@ -87,6 +91,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
 
       - name: Checkout

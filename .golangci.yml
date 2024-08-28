@@ -20,14 +20,23 @@ linters:
     # Checks whether HTTP response body is closed successfully.
     - bodyclose
 
+    # Checks whether net/http.Header uses canonical header.
+    - canonicalheader
+
     # Detects structs that contain a context.Context field.
     - containedctx
 
     # Checks whether functions use a non-inherited context.
     - contextcheck
 
+    # Detects places where loop variables are copied.
+    - copyloopvar
+
     # Checks function and package cyclomatic complexity.
     - cyclop
+
+    # A Go linter that checks package imports are in a list of acceptable packages.
+    - depguard
 
     # Check for two durations multiplied together.
     - durationcheck
@@ -54,6 +63,9 @@ linters:
     # Checks for pointers to enclosing loop variables.
     - exportloopref
 
+    # Detects nested contexts in loops.
+    - fatcontext
+
     # Finds forced type assertions.
     - forcetypeassert
 
@@ -62,6 +74,9 @@ linters:
 
     # Checks that go compiler directive comments (//go:) are valid.
     - gocheckcompilerdirectives
+
+    # Run exhaustiveness checks on Go "sum types".
+    - gochecksumtype
 
     # Finds repeated strings that could be replaced by a constant.
     - goconst
@@ -97,8 +112,14 @@ linters:
     # An analyzer to analyze expression groups.
     - grouper
 
+    # Reports interfaces with unnamed method parameters.
+    - inamedparam
+
     # Detects when assignments to existing variables are not used.
     - ineffassign
+
+    # Find places where for loops could make use of an integer range.
+    - intrange
 
     # Finds slice declarations with non-zero initial length.
     - makezero
@@ -136,6 +157,9 @@ linters:
     # Detects missing usage of t.Parallel() method in your Go test.
     - paralleltest
 
+    # Checks that fmt.Sprintf can be replaced with a faster alternative.
+    - perfsprint
+
     # Finds slice declarations that could potentially be pre-allocated.
     - prealloc
 
@@ -144,6 +168,9 @@ linters:
 
     # Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
     - revive
+
+    # Ensure consistent code style when using log/slog.
+    - sloglint
 
     # It's a set of rules from staticcheck. It's not the same thing as the
     # staticcheck binary. The author of staticcheck doesn't support or
@@ -220,6 +247,23 @@ linters-settings:
     max-complexity: 17
     package-average: 0.0
     skip-tests: false
+
+  depguard:
+    rules:
+      main:
+        allow:
+          - $gostd
+          - github.com/coder/websocket
+          - github.com/fxamacker/cbor/v2
+        deny:
+          - pkg: github.com/pkg/errors
+            desc: "Use errors (std) instead"
+          - pkg: golang.org/x/net/context
+            desc: "Use context (std) instead"
+          - pkg: "github.com/stretchr/testify"
+            desc: "Use gotest.tools/v3 instead"
+          - pkg: "nhooyr.io/websocket"
+            desc: "Moved to github.com/coder/websocket"
 
   errcheck:
     check-type-assertions: true
@@ -311,7 +355,7 @@ linters-settings:
     var-require-single-var: false
     # Require the use of grouped global 'var' declarations.
     # Default: false
-    var-require-grouping: true
+    var-require-grouping: false
 
   misspell:
     ignore-words: []

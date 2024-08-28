@@ -2,8 +2,10 @@ package sdbc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -11,7 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"nhooyr.io/websocket"
+	"github.com/coder/websocket"
+	"github.com/fxamacker/cbor/v2"
 )
 
 const (
@@ -27,8 +30,20 @@ const (
 	versionPrefix = "surrealdb-"
 )
 
+var (
+	regexName = regexp.MustCompile("^[A-Za-z0-9_]+$")
+
+	ErrInvalidNamespaceName = errors.New("invalid namespace name")
+	ErrInvalidDatabaseName  = errors.New("invalid database name")
+
+	ErrContextNil = errors.New("context is nil")
+)
+
 type Client struct {
 	*options
+
+	marshal   Marshal
+	unmarshal Unmarshal
 
 	conf    Config
 	version string
@@ -79,6 +94,22 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 		conf:    conf,
 	}
 
+	encTags := cbor.NewTagSet()
+	decTags := cbor.NewTagSet()
+
+	enc, err := cbor.EncOptions{}.EncModeWithTags(encTags)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cbor encoder: %w", err)
+	}
+
+	dec, err := cbor.DecOptions{}.DecModeWithTags(decTags)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cbor decoder: %w", err)
+	}
+
+	client.marshal = enc.Marshal
+	client.unmarshal = dec.Unmarshal
+
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 
 	if err := client.readVersion(ctx); err != nil {
@@ -112,7 +143,7 @@ func (c *Client) readVersion(ctx context.Context) error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
@@ -152,6 +183,7 @@ func (c *Client) openWebsocket() error {
 
 	//nolint:bodyclose // connection is closed by the client Close() method
 	conn, _, err := websocket.Dial(c.connCtx, requestURL.String(), &websocket.DialOptions{
+		Subprotocols:    []string{"cbor"},
 		CompressionMode: websocket.CompressionContextTakeover,
 	})
 	if err != nil {
@@ -165,7 +197,7 @@ func (c *Client) openWebsocket() error {
 	c.waitGroup.Add(1)
 	go func() {
 		defer c.waitGroup.Done()
-		c.subscribe()
+		c.subscribe(c.connCtx)
 	}()
 
 	return nil
@@ -197,13 +229,6 @@ func (c *Client) checkWebsocketConn(err error) {
 		}
 	}
 }
-
-var (
-	regexName = regexp.MustCompile("[A-Za-z0-9_]+")
-
-	ErrInvalidNamespaceName = fmt.Errorf("invalid namespace name")
-	ErrInvalidDatabaseName  = fmt.Errorf("invalid database name")
-)
 
 func (c *Client) init(ctx context.Context, conf Config) error {
 	if !regexName.MatchString(conf.Namespace) {
@@ -246,7 +271,7 @@ func (c *Client) init(ctx context.Context, conf Config) error {
 func (c *Client) checkBasicResponse(resp []byte) error {
 	var res []basicResponse[string]
 
-	if err := c.jsonUnmarshal(resp, &res); err != nil {
+	if err := c.unmarshal(resp, &res); err != nil {
 		return fmt.Errorf("could not unmarshal response: %w", err)
 	}
 
@@ -265,6 +290,14 @@ func (c *Client) DatabaseVersion() string {
 	return c.version
 }
 
+func (c *Client) Marshal(val any) ([]byte, error) {
+	return c.marshal(val)
+}
+
+func (c *Client) Unmarshal(data []byte, val any) error {
+	return c.unmarshal(data, val)
+}
+
 // Close closes the client and the websocket connection.
 // Furthermore, it cleans up all idle goroutines.
 func (c *Client) Close() error {
@@ -279,7 +312,8 @@ func (c *Client) Close() error {
 	c.logger.Info("Closing client.")
 
 	err := c.conn.Close(websocket.StatusNormalClosure, "closing client")
-	if err != nil {
+	if err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, io.EOF) {
+		// TODO: is it really properly closed despite the io.EOF error?
 		return fmt.Errorf("could not close websocket connection: %w", err)
 	}
 

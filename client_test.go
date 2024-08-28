@@ -2,18 +2,16 @@ package sdbc
 
 import (
 	"context"
-	"encoding/json"
-	"log/slog"
-	"os"
-	"regexp"
-	"strings"
+	"errors"
+	"fmt"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/brianvoe/gofakeit/v7"
-	"github.com/docker/docker/api/types/container"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -32,7 +30,8 @@ func TestClient(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareSurreal(ctx, t)
+
 	defer cleanup()
 
 	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
@@ -42,10 +41,48 @@ func TestClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = client.Create(ctx, "test", nil)
+	_, err = client.Create(ctx, NewID("test"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestClientReadVersion(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
+		res.Write([]byte("surrealdb-" + surrealDBVersion))
+	}))
+	defer testServer.Close()
+
+	hostUrl, err := url.Parse(testServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := &Client{
+		options: applyOptions(nil),
+		conf: Config{
+			Host: fmt.Sprintf("%s:%s", hostUrl.Hostname(), hostUrl.Port()),
+		},
+	}
+
+	if err = client.readVersion(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
+
+	err = client.readVersion(nil)
+	assert.ErrorContains(t, err, "failed to create request")
+
+	client.options.httpClient = &mockHttpClientWithError{}
+
+	err = client.readVersion(ctx)
+	assert.ErrorContains(t, err, "failed to send request")
 }
 
 func TestClientCRUD(t *testing.T) {
@@ -53,12 +90,23 @@ func TestClientCRUD(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareSurreal(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
 
-	_, err := client.Query(ctx, "define table some schemaless;", nil)
+	sql := `
+		DEFINE TABLE some SCHEMAFULL TYPE NORMAL;
+
+		DEFINE FIELD name ON some TYPE string;
+		DEFINE FIELD value ON some TYPE int;
+		DEFINE FIELD slice ON some TYPE array<string>;
+
+		DEFINE FIELD created_at ON some TYPE datetime;
+		DEFINE FIELD duration ON some TYPE duration;
+	`
+
+	_, err := client.Query(ctx, sql, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,31 +114,35 @@ func TestClientCRUD(t *testing.T) {
 	// CREATE
 
 	modelIn := someModel{
-		Name:  "some_name",
-		Value: 42, //nolint:revive // test value
-		Slice: []string{"a", "b", "c"},
+		Name:      "some_name",
+		Value:     42, //nolint:revive // test value
+		Slice:     []string{"a", "b", "c"},
+		CreatedAt: DateTime{time.Now()},
+		Duration:  Duration{time.Second + (5 * time.Nanosecond)},
 	}
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, NewULID(thingSome), modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var modelCreate []someModel
+	var modelCreate someModel
 
-	err = json.Unmarshal(res, &modelCreate)
+	err = client.unmarshal(res, &modelCreate)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.Equal(modelIn.Name, modelCreate[0].Name))
-	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
-	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
+	assert.Check(t, is.Equal(modelIn.Name, modelCreate.Name))
+	assert.Check(t, is.Equal(modelIn.Value, modelCreate.Value))
+	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate.Slice))
+	assert.Check(t, is.Equal(modelIn.CreatedAt.Format(time.RFC3339), modelCreate.CreatedAt.Format(time.RFC3339)))
+	assert.Check(t, is.Equal(modelIn.Duration, modelCreate.Duration))
 
 	// QUERY
 
 	res, err = client.Query(ctx, "select * from some where id = $id;", map[string]any{
-		"id": modelCreate[0].ID,
+		"id": modelCreate.ID,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -98,41 +150,45 @@ func TestClientCRUD(t *testing.T) {
 
 	var modelQuery1 []baseResponse[someModel]
 
-	err = json.Unmarshal(res, &modelQuery1)
+	err = client.unmarshal(res, &modelQuery1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.DeepEqual(modelCreate[0], modelQuery1[0].Result[0]))
+	if len(modelQuery1[0].Result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(modelQuery1[0].Result))
+	}
+
+	assert.Check(t, is.DeepEqual(modelCreate, modelQuery1[0].Result[0], cmpopts.IgnoreUnexported(ID{}, DateTime{})))
 
 	// UPDATE
 
 	modelIn.Name = "some_other_name"
 
-	res, err = client.Update(ctx, thingSome, modelIn)
+	res, err = client.Update(ctx, modelCreate.ID, modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var modelUpdate []someModel
+	var modelUpdate someModel
 
-	err = json.Unmarshal(res, &modelUpdate)
+	err = client.unmarshal(res, &modelUpdate)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.Equal(modelIn.Name, modelUpdate[0].Name))
+	assert.Check(t, is.Equal(modelIn.Name, modelUpdate.Name))
 
 	// SELECT
 
-	res, err = client.Select(ctx, modelUpdate[0].ID)
+	res, err = client.Select(ctx, modelUpdate.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var modelSelect someModel
 
-	err = json.Unmarshal(res, &modelSelect)
+	err = client.unmarshal(res, &modelSelect)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,19 +197,19 @@ func TestClientCRUD(t *testing.T) {
 
 	// DELETE
 
-	res, err = client.Delete(ctx, modelCreate[0].ID)
+	res, err = client.Delete(ctx, modelCreate.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var modelDelete someModel
 
-	err = json.Unmarshal(res, &modelDelete)
+	err = client.unmarshal(res, &modelDelete)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.DeepEqual(modelUpdate[0], modelDelete))
+	assert.Check(t, is.DeepEqual(modelUpdate.ID, modelDelete.ID, cmpopts.IgnoreUnexported(ID{})))
 }
 
 func TestClientLive(t *testing.T) {
@@ -161,7 +217,7 @@ func TestClientLive(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareSurreal(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -196,41 +252,43 @@ func TestClientLive(t *testing.T) {
 		for liveOut := range live {
 			var liveRes liveResponse[someModel]
 
-			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
-				liveResChan <- nil
+			if err := client.unmarshal(liveOut, &liveRes); err != nil {
 				liveErrChan <- err
+				liveResChan <- nil
 
 				return
 			}
 
-			liveResChan <- &liveRes.Result
 			liveErrChan <- nil
+			liveResChan <- &liveRes.Result
 		}
 	}()
 
 	// CREATE
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, NewID(thingSome), modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var modelCreate []someModel
+	var modelCreate someModel
 
-	err = json.Unmarshal(res, &modelCreate)
+	err = client.unmarshal(res, &modelCreate)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.Equal(modelIn.Name, modelCreate[0].Name))
-	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
-	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
+	assert.Check(t, is.Equal(modelIn.Name, modelCreate.Name))
+	assert.Check(t, is.Equal(modelIn.Value, modelCreate.Value))
+	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate.Slice))
+
+	if liveErr := <-liveErrChan; liveErr != nil {
+		t.Fatal(liveErr)
+	}
 
 	liveRes := <-liveResChan
-	liveErr := <-liveErrChan
 
-	assert.Check(t, is.Nil(liveErr))
-	assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
+	assert.Check(t, is.DeepEqual(modelCreate, *liveRes, cmpopts.IgnoreUnexported(ID{})))
 }
 
 func TestClientLiveFilter(t *testing.T) {
@@ -238,7 +296,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	ctx := context.Background()
 
-	client, cleanup := prepareDatabase(ctx, t)
+	client, cleanup := prepareSurreal(ctx, t)
 	defer cleanup()
 
 	// DEFINE TABLE
@@ -275,7 +333,7 @@ func TestClientLiveFilter(t *testing.T) {
 		for liveOut := range live {
 			var liveRes liveResponse[someModel]
 
-			if err := json.Unmarshal(liveOut, &liveRes); err != nil {
+			if err := client.unmarshal(liveOut, &liveRes); err != nil {
 				liveResChan <- nil
 				liveErrChan <- err
 
@@ -289,26 +347,26 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// CREATE
 
-	res, err := client.Create(ctx, thingSome, modelIn)
+	res, err := client.Create(ctx, NewID(thingSome), modelIn)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var modelCreate []someModel
+	var modelCreate someModel
 
-	err = json.Unmarshal(res, &modelCreate)
+	err = client.unmarshal(res, &modelCreate)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.Equal(modelIn.Name, modelCreate[0].Name))
-	assert.Check(t, is.Equal(modelIn.Value, modelCreate[0].Value))
-	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate[0].Slice))
+	assert.Check(t, is.Equal(modelIn.Name, modelCreate.Name))
+	assert.Check(t, is.Equal(modelIn.Value, modelCreate.Value))
+	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate.Slice))
 
 	select {
 
 	case liveRes := <-liveResChan:
-		assert.Check(t, is.DeepEqual(modelCreate[0], *liveRes))
+		assert.Check(t, is.DeepEqual(modelCreate, *liveRes))
 
 	case <-time.After(1 * time.Second):
 		t.Fatal("timeout")
@@ -324,6 +382,53 @@ func TestClientLiveFilter(t *testing.T) {
 	}
 }
 
+func TestInvalidNamespaceAndDatabaseNames(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	username := gofakeit.Username()
+	password := gofakeit.Password(true, true, true, true, true, 32)
+
+	dbHost, dbCleanup := prepareDatabase(ctx, t, username, password)
+	defer dbCleanup()
+
+	namespace := gofakeit.FirstName()
+	database := gofakeit.LastName()
+
+	// test invalid namespace name
+
+	invalidNamespace := gofakeit.Name()
+
+	_, err := NewClient(ctx,
+		Config{
+			Host:      dbHost,
+			Username:  username,
+			Password:  password,
+			Namespace: invalidNamespace,
+			Database:  database,
+		},
+	)
+
+	assert.Check(t, errors.Is(err, ErrInvalidNamespaceName))
+
+	// test invalid database name
+
+	invalidDatabase := gofakeit.Name()
+
+	_, err = NewClient(ctx,
+		Config{
+			Host:      dbHost,
+			Username:  username,
+			Password:  password,
+			Namespace: namespace,
+			Database:  invalidDatabase,
+		},
+	)
+
+	assert.Check(t, errors.Is(err, ErrInvalidDatabaseName))
+}
+
 //
 // -- TYPES
 //
@@ -335,117 +440,18 @@ type baseResponse[T any] struct {
 }
 
 type liveResponse[T any] struct {
-	ID     string `json:"id"`
+	ID     []byte `json:"id"`
 	Action string `json:"action"`
 	Result T      `json:"result"`
 }
 
 type someModel struct {
-	ID    string   `json:"id,omitempty"`
+	//_     struct{} `cbor:",toarray"`
+	ID    *ID      `cbor:"id,omitempty"`
 	Name  string   `json:"name"`
 	Value int      `json:"value"`
 	Slice []string `json:"slice"`
-}
 
-//
-// -- HELPER
-//
-
-func prepareDatabase(ctx context.Context, tb testing.TB) (*Client, func()) {
-	tb.Helper()
-
-	username := gofakeit.Username()
-	password := gofakeit.Password(true, true, true, true, true, 32)
-	namespace := gofakeit.FirstName()
-	database := gofakeit.LastName()
-
-	// Testcontainers environment seems to have a problem with the ampersand character,
-	// possibly due to it being a special character and not correctly escaped.
-	password = strings.ReplaceAll(password, "&", "-")
-
-	req := testcontainers.ContainerRequest{
-		Name:  "sdbc_" + toSlug(tb.Name()),
-		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
-		Env: map[string]string{
-			"SURREAL_PATH":   "memory",
-			"SURREAL_STRICT": "true",
-			"SURREAL_AUTH":   "true",
-			"SURREAL_USER":   username,
-			"SURREAL_PASS":   password,
-		},
-		Cmd: []string{
-			"start", "--bind", "0.0.0.0:8000", "--allow-funcs", "--log", "trace",
-		},
-		ExposedPorts: []string{"8000/tcp"},
-		WaitingFor:   wait.ForLog(containerStartedMsg),
-		HostConfigModifier: func(conf *container.HostConfig) {
-			conf.AutoRemove = true
-		},
-	}
-
-	surreal, err := testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-			Reuse:            true,
-		},
-	)
-	if err != nil {
-		tb.Fatal(err)
-	}
-
-	host, err := surreal.Endpoint(ctx, "")
-	if err != nil {
-		tb.Fatal(err)
-	}
-
-	client, err := NewClient(ctx,
-		Config{
-			Host:      host,
-			Username:  username,
-			Password:  password,
-			Namespace: namespace,
-			Database:  database,
-		},
-		WithLogger(
-			slog.New(
-				slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
-			),
-		),
-	)
-	if err != nil {
-		tb.Fatal(err)
-	}
-
-	cleanup := func() {
-		if err := client.Close(); err != nil {
-			tb.Fatalf("failed to close client: %s", err.Error())
-		}
-
-		if err := surreal.Terminate(ctx); err != nil {
-			tb.Fatalf("failed to terminate container: %s", err.Error())
-		}
-	}
-
-	return client, cleanup
-}
-
-func toSlug(input string) string {
-	// Remove special characters
-	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
-	if err != nil {
-		panic(err)
-	}
-	processedString := reg.ReplaceAllString(input, " ")
-
-	// Remove leading and trailing spaces
-	processedString = strings.TrimSpace(processedString)
-
-	// Replace spaces with dashes
-	slug := strings.ReplaceAll(processedString, " ", "-")
-
-	// Convert to lowercase
-	slug = strings.ToLower(slug)
-
-	return slug
+	CreatedAt DateTime `json:"created_at"`
+	Duration  Duration `json:"duration"`
 }
