@@ -13,21 +13,76 @@ import (
 )
 
 const (
-	methodSignIn = "signin"
 	methodUse    = "use"
-	methodQuery  = "query"
-	methodKill   = "kill"
+	methodSignUp = "signup"
+	methodSignIn = "signin"
+	methodInfo   = "info"
+
+	methodCreate = "create"
 	methodUpdate = "update"
+	methodUpsert = "upsert"
 	methodDelete = "delete"
 	methodSelect = "select"
-	methodCreate = "create"
+
+	methodQuery = "query"
 
 	livePrefix = "live"
+	methodKill = "kill"
 
 	randomVariablePrefixLength = 32
 )
 
+// use specifies or unsets the namespace and/or database for the current connection.
+func (c *Client) use(ctx context.Context, namespace, database string) error {
+	_, err := c.send(ctx,
+		request{
+			Method: methodUse,
+			Params: []any{
+				namespace,
+				database,
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+
+	return nil
+}
+
+//
+// -- AUTH
+//
+
+// SignUp a user using the SIGNUP query defined in a record access method.
+func (c *Client) SignUp(ctx context.Context, ns, db, ac string, vars map[string]any) ([]byte, error) {
+	params := make(map[string]any, len(vars)+3)
+
+	params["NS"] = ns
+	params["DB"] = db
+	params["AC"] = ac
+
+	for key, val := range vars {
+		params[key] = val
+	}
+
+	res, err := c.send(ctx,
+		request{
+			Method: methodSignUp,
+			Params: []any{
+				params,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not sign up: %w", err)
+	}
+
+	return res, nil
+}
+
 // signIn is a helper method for signing in a user.
+// signin [ ... ]	Signin a root, NS, DB or record user against SurrealDB
 func (c *Client) signIn(ctx context.Context, username, password string) error {
 	res, err := c.send(ctx,
 		request{
@@ -49,25 +104,138 @@ func (c *Client) signIn(ctx context.Context, username, password string) error {
 	return nil
 }
 
-// use is a method to select the namespace and table for the connection.
-func (c *Client) use(ctx context.Context, namespace, database string) error {
-	_, err := c.send(ctx,
+// Info	returns the record of an authenticated record user.
+// TODO: return parsed info struct
+func (c *Client) Info(ctx context.Context) ([]byte, error) {
+	res, err := c.send(ctx,
 		request{
-			Method: methodUse,
+			Method: methodInfo,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not get info: %w", err)
+	}
+
+	return res, nil
+}
+
+// TODO: authenticate [ token ]	Authenticate a user against SurrealDB with a token
+// TODO: invalidate	Invalidate a user's session for the current connection
+
+//
+// -- CRUD
+//
+
+// Create a record with a random or specified ID
+func (c *Client) Create(ctx context.Context, id RecordID, data any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodCreate,
 			Params: []any{
-				namespace,
-				database,
+				id,
+				data,
 			},
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
-	return nil
+	return res, nil
 }
 
-// Query is a convenient method for sending a query to the database.
+// TODO: INSERT -> //insert [ thing, data ]	Insert one or multiple records in a table
+// Support batch import with INSERT statement. This also extends to relationships between tables using the INSERT RELATION statement
+
+// Update modifies either all records in a table or a single
+// record with specified data if the record already exists.
+func (c *Client) Update(ctx context.Context, id *ID, data any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodUpdate,
+			Params: []any{
+				id,
+				data,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	return res, nil
+}
+
+// Upsert replaces either all records in a table or a single record with specified data.
+// Note: Only supported by SurrealDB v2.0.0 and later.
+func (c *Client) Upsert(ctx context.Context, id *ID, data any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodUpsert,
+			Params: []any{
+				id,
+				data,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	return res, nil
+}
+
+// TODO: merge [ thing, data ]	Merge specified data into either all records in a table or a single record
+// TODO: patch [ thing, patches, diff ]	Patch either all records in a table or a single record with specified patches
+
+// Delete either all records in a table or a single record.
+func (c *Client) Delete(ctx context.Context, id *ID) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodDelete,
+			Params: []any{
+				id,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	return res, nil
+}
+
+// Select either all records in a table or a single record
+func (c *Client) Select(ctx context.Context, id *ID) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodSelect,
+			Params: []any{
+				id,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	return res, nil
+}
+
+// TODO: SelectRange
+// https://surrealdb.com/docs/surrealdb/surrealql/functions/database/type#typerange
+
+//
+// -- RELATIONS
+//
+
+// TODO: //relate [ in, out, relation ]	Create graph relationships between created records
+
+//
+// -- QUERY
+//
+
+// Query executes a custom query with optional variables.
 func (c *Client) Query(ctx context.Context, query string, vars map[string]any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
@@ -84,6 +252,10 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any) (
 
 	return res, nil
 }
+
+//
+// -- LIVE
+//
 
 // Live executes a live query request and returns a channel to receive the results.
 //
@@ -197,6 +369,7 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 	return liveChan, nil
 }
 
+// Kill an active live query.
 func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
@@ -213,74 +386,12 @@ func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 	return res, nil
 }
 
-// Select a table or record from the database.
-func (c *Client) Select(ctx context.Context, id *ID) ([]byte, error) {
-	res, err := c.send(ctx,
-		request{
-			Method: methodSelect,
-			Params: []any{
-				id,
-			},
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
+//
+// -- MISC
+//
 
-	return res, nil
-}
-
-func (c *Client) Create(ctx context.Context, id RecordID, data any) ([]byte, error) {
-	res, err := c.send(ctx,
-		request{
-			Method: methodCreate,
-			Params: []any{
-				id,
-				data,
-			},
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-
-	return res, nil
-}
-
-// Update a table or record in the database like a PUT request.
-func (c *Client) Update(ctx context.Context, id *ID, data any) ([]byte, error) {
-	res, err := c.send(ctx,
-		request{
-			Method: methodUpdate,
-			Params: []any{
-				id,
-				data,
-			},
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-
-	return res, nil
-}
-
-// Delete a table or a row from the database like a DELETE request.
-func (c *Client) Delete(ctx context.Context, id *ID) ([]byte, error) {
-	res, err := c.send(ctx,
-		request{
-			Method: methodDelete,
-			Params: []any{
-				id,
-			},
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-
-	return res, nil
-}
+// TODO: let [ name, value ]	Define a variable on the current connection
+// TODO: unset [ name ]	Remove a variable from the current connection
 
 //
 // -- TYPES
