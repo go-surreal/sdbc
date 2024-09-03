@@ -13,21 +13,31 @@ import (
 )
 
 const (
-	methodUse    = "use"
-	methodSignUp = "signup"
-	methodSignIn = "signin"
-	methodInfo   = "info"
+	methodUse          = "use"
+	methodSignUp       = "signup"
+	methodSignIn       = "signin"
+	methodInfo         = "info"
+	methodAuthenticate = "authenticate"
+	methodInvalidate   = "invalidate"
 
 	methodCreate = "create"
+	methodInsert = "insert"
 	methodUpdate = "update"
 	methodUpsert = "upsert"
+	methodMerge  = "merge"
+	methodPatch  = "patch"
 	methodDelete = "delete"
 	methodSelect = "select"
+
+	methodRelate = "relate"
 
 	methodQuery = "query"
 
 	livePrefix = "live"
 	methodKill = "kill"
+
+	methodLet   = "let"
+	methodUnset = "unset"
 
 	randomVariablePrefixLength = 32
 )
@@ -44,7 +54,7 @@ func (c *Client) use(ctx context.Context, namespace, database string) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
+		return fmt.Errorf("failed to use ns/db: %w", err)
 	}
 
 	return nil
@@ -75,14 +85,13 @@ func (c *Client) SignUp(ctx context.Context, ns, db, ac string, vars map[string]
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not sign up: %w", err)
+		return nil, fmt.Errorf("failed to sign up: %w", err)
 	}
 
 	return res, nil
 }
 
-// signIn is a helper method for signing in a user.
-// signin [ ... ]	Signin a root, NS, DB or record user against SurrealDB
+// signIn a root, NS, DB or record user against SurrealDB.
 func (c *Client) signIn(ctx context.Context, username, password string) error {
 	res, err := c.send(ctx,
 		request{
@@ -96,7 +105,7 @@ func (c *Client) signIn(ctx context.Context, username, password string) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("could not sign in: %w", err)
+		return fmt.Errorf("failed to sign in: %w", err)
 	}
 
 	c.token = string(res)
@@ -113,20 +122,47 @@ func (c *Client) Info(ctx context.Context) ([]byte, error) {
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not get info: %w", err)
+		return nil, fmt.Errorf("failed to get auth info: %w", err)
 	}
 
 	return res, nil
 }
 
-// TODO: authenticate [ token ]	Authenticate a user against SurrealDB with a token
-// TODO: invalidate	Invalidate a user's session for the current connection
+func (c *Client) Authenticate(ctx context.Context, token string) error {
+	_, err := c.send(ctx,
+		request{
+			Method: methodAuthenticate,
+			Params: []any{
+				token,
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to authenticate token: %w", err)
+	}
+
+	return nil
+}
+
+// Invalidate a user's session for the current connection.
+func (c *Client) Invalidate(ctx context.Context) error {
+	_, err := c.send(ctx,
+		request{
+			Method: methodInvalidate,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to invalidate user: %w", err)
+	}
+
+	return nil
+}
 
 //
 // -- CRUD
 //
 
-// Create a record with a random or specified ID
+// Create a record with a random or specified ID.
 func (c *Client) Create(ctx context.Context, id RecordID, data any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
@@ -138,14 +174,31 @@ func (c *Client) Create(ctx context.Context, id RecordID, data any) ([]byte, err
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+		return nil, fmt.Errorf("failed to create record: %w", err)
 	}
 
 	return res, nil
 }
 
-// TODO: INSERT -> //insert [ thing, data ]	Insert one or multiple records in a table
-// Support batch import with INSERT statement. This also extends to relationships between tables using the INSERT RELATION statement
+// Insert one or multiple records in a table.
+// TODO: allow for fixed IDs.
+// TODO: "INSERT RELATION" statement for relations.
+func (c *Client) Insert(ctx context.Context, table string, data []any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodInsert,
+			Params: []any{
+				table,
+				data,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert records: %w", err)
+	}
+
+	return res, nil
+}
 
 // Update modifies either all records in a table or a single
 // record with specified data if the record already exists.
@@ -160,7 +213,7 @@ func (c *Client) Update(ctx context.Context, id *ID, data any) ([]byte, error) {
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+		return nil, fmt.Errorf("failed to update record: %w", err)
 	}
 
 	return res, nil
@@ -179,14 +232,50 @@ func (c *Client) Upsert(ctx context.Context, id *ID, data any) ([]byte, error) {
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+		return nil, fmt.Errorf("failed to upsert record: %w", err)
 	}
 
 	return res, nil
 }
 
-// TODO: merge [ thing, data ]	Merge specified data into either all records in a table or a single record
-// TODO: patch [ thing, patches, diff ]	Patch either all records in a table or a single record with specified patches
+// Merge specified data into either all records in a table or a single record.
+// TODO: support "all" records
+func (c *Client) Merge(ctx context.Context, thing *ID, data any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodMerge,
+			Params: []any{
+				thing,
+				data,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge record(s): %w", err)
+	}
+
+	return res, nil
+}
+
+// Patch either all records in a table or a single record with specified patches.
+// see: https://jsonpatch.com/
+func (c *Client) Patch(ctx context.Context, thing *ID, patches []patch, diff bool) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodPatch,
+			Params: []any{
+				thing,
+				patches,
+				diff,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to patch record(s): %w", err)
+	}
+
+	return res, nil
+}
 
 // Delete either all records in a table or a single record.
 func (c *Client) Delete(ctx context.Context, id *ID) ([]byte, error) {
@@ -229,7 +318,25 @@ func (c *Client) Select(ctx context.Context, id *ID) ([]byte, error) {
 // -- RELATIONS
 //
 
-// TODO: //relate [ in, out, relation ]	Create graph relationships between created records
+// Relate creates a graph relationship between two records.
+// TODO: Use Query to create relations with additional data.
+func (c *Client) Relate(ctx context.Context, in, out, relation string) error {
+	_, err := c.send(ctx,
+		request{
+			Method: methodRelate,
+			Params: []any{
+				in,
+				out,
+				relation,
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to relate records: %w", err)
+	}
+
+	return nil
+}
 
 //
 // -- QUERY
@@ -390,16 +497,54 @@ func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 // -- MISC
 //
 
-// TODO: let [ name, value ]	Define a variable on the current connection
-// TODO: unset [ name ]	Remove a variable from the current connection
+// Let defines a variable on the current connection.
+func (c *Client) Let(ctx context.Context, name string, value any) error {
+	_, err := c.send(ctx,
+		request{
+			Method: methodLet,
+			Params: []any{
+				name,
+				value,
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to set variable: %w", err)
+	}
+
+	return nil
+}
+
+// Unset removes a variable from the current connection.
+func (c *Client) Unset(ctx context.Context, name string) error {
+	_, err := c.send(ctx,
+		request{
+			Method: methodUnset,
+			Params: []any{
+				name,
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to unset variable: %w", err)
+	}
+
+	return nil
+}
 
 //
 // -- TYPES
 //
 
 type signInParams struct {
-	User string `json:"user"`
-	Pass string `json:"pass"`
+	User string `cbor:"user"`
+	Pass string `cbor:"pass"`
+}
+
+type patch struct {
+	Op    string `cbor:"op"`
+	Path  string `cbor:"path"`
+	Value any    `cbor:"value"`
 }
 
 //
