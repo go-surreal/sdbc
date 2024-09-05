@@ -2,7 +2,7 @@ module github.com/go-surreal/sdbc
 
 go 1.23
 
-toolchain go1.23.0
+toolchain go1.23.1
 
 retract [v0.1.0, v0.5.0] // only the latest version is supported
 
