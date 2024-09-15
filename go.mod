@@ -1,10 +1,8 @@
 module github.com/go-surreal/sdbc
 
-go 1.23
+go 1.22.7
 
-toolchain go1.23.0
-
-retract [v0.1.0, v0.5.0] // only the latest version is supported
+retract [v0.1.0, v0.7.0] // only the latest version is supported
 
 require (
 	github.com/brianvoe/gofakeit/v7 v7.0.4
@@ -12,7 +10,6 @@ require (
 	github.com/docker/docker v27.1.2+incompatible
 	github.com/fxamacker/cbor/v2 v2.7.0
 	github.com/google/go-cmp v0.6.0
-	github.com/google/uuid v1.6.0
 	github.com/testcontainers/testcontainers-go v0.32.0
 	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa
 	gotest.tools/v3 v3.5.1
@@ -37,6 +34,7 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
