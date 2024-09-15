@@ -13,7 +13,9 @@ import (
 )
 
 const (
-	methodUse          = "use"
+	methodUse     = "use"
+	methodVersion = "version"
+
 	methodSignUp       = "signup"
 	methodSignIn       = "signin"
 	methodInfo         = "info"
@@ -29,15 +31,18 @@ const (
 	methodDelete = "delete"
 	methodSelect = "select"
 
-	methodRelate = "relate"
+	methodRelate         = "relate"
+	methodInsertRelation = "insert_relation"
 
 	methodQuery = "query"
 
 	livePrefix = "live"
 	methodKill = "kill"
 
-	methodLet   = "let"
-	methodUnset = "unset"
+	methodLet     = "let"
+	methodUnset   = "unset"
+	methodRun     = "run"
+	methodGraphQL = "graphql"
 
 	randomVariablePrefixLength = 32
 )
@@ -58,6 +63,20 @@ func (c *Client) use(ctx context.Context, namespace, database string) error {
 	}
 
 	return nil
+}
+
+// Version returns version information about the database/server.
+func (c *Client) Version(ctx context.Context) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodVersion,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get version info: %w", err)
+	}
+
+	return res, nil
 }
 
 //
@@ -182,7 +201,6 @@ func (c *Client) Create(ctx context.Context, id RecordID, data any) ([]byte, err
 
 // Insert one or multiple records in a table.
 // TODO: allow for fixed IDs.
-// TODO: "INSERT RELATION" statement for relations.
 func (c *Client) Insert(ctx context.Context, table string, data []any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
@@ -315,30 +333,6 @@ func (c *Client) Select(ctx context.Context, id *ID) ([]byte, error) {
 // https://surrealdb.com/docs/surrealdb/surrealql/functions/database/type#typerange
 
 //
-// -- RELATIONS
-//
-
-// Relate creates a graph relationship between two records.
-// TODO: Use Query to create relations with additional data.
-func (c *Client) Relate(ctx context.Context, in, out, relation string) error {
-	_, err := c.send(ctx,
-		request{
-			Method: methodRelate,
-			Params: []any{
-				in,
-				out,
-				relation,
-			},
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to relate records: %w", err)
-	}
-
-	return nil
-}
-
-//
 // -- QUERY
 //
 
@@ -379,6 +373,9 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any) (
 //
 // TODO: prevent query from being more than one statement.
 func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<-chan []byte, error) {
+	// Note: rpc method "live" does not support advanced live queries where filters
+	// are needed, so we use the "query" method to initiate a custom live query.
+
 	varPrefix, err := randString(randomVariablePrefixLength)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random string: %w", err)
@@ -494,6 +491,56 @@ func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 }
 
 //
+// -- RELATIONS
+//
+
+// Relate creates a graph relationship between two records.
+// Data is optional and only submitted if it is not nil.
+func (c *Client) Relate(ctx context.Context, in, relation, out string, data any) ([]byte, error) {
+	params := []any{
+		in,
+		out,
+		relation,
+	}
+
+	if data != nil {
+		params = append(params, data)
+	}
+
+	res, err := c.send(ctx,
+		request{
+			Method: methodRelate,
+			Params: params,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to relate records: %w", err)
+	}
+
+	return res, nil
+}
+
+// InsertRelation inserts a new relation record into the database.
+// Data needs to specify both the in and out records.
+// If table is nil, the relation table is inferred from the data record ID field.
+func (c *Client) InsertRelation(ctx context.Context, table *string, data any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodInsertRelation,
+			Params: []any{
+				table,
+				data,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert relation: %w", err)
+	}
+
+	return res, nil
+}
+
+//
 // -- MISC
 //
 
@@ -532,6 +579,43 @@ func (c *Client) Unset(ctx context.Context, name string) error {
 	return nil
 }
 
+// Run executes built-in functions, custom functions, or machine learning models with optional arguments.
+func (c *Client) Run(ctx context.Context, name string, version *string, args []any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodRun,
+			Params: []any{
+				name,
+				version,
+				args,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run function: %w", err)
+	}
+
+	return res, nil
+}
+
+// GraphQL executes graphql queries against the database.
+// Note: Requires SurrealDB v2.0.0 or later.
+func (c *Client) GraphQL(ctx context.Context, req GraphqlRequest) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodGraphQL,
+			Params: []any{
+				req,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute graphql query: %w", err)
+	}
+
+	return res, nil
+}
+
 //
 // -- TYPES
 //
@@ -545,6 +629,18 @@ type patch struct {
 	Op    string `cbor:"op"`
 	Path  string `cbor:"path"`
 	Value any    `cbor:"value"`
+}
+
+type GraphqlRequest struct {
+
+	// Query contains the query string to execute (required).
+	Query string `cbor:"query"`
+
+	// Vars may contain variables to be used in the query (optional).
+	Vars map[string]any `cbor:"vars"`
+
+	// Operation is the name of the operation to execute (optional).
+	Operation string `cbor:"operationName"`
 }
 
 //
