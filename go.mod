@@ -1,10 +1,8 @@
 module github.com/go-surreal/sdbc
 
-go 1.22.6
+go 1.22.7
 
-toolchain go1.23.0
-
-retract [v0.1.0, v0.6.0] // only the latest version is supported
+retract [v0.1.0, v0.7.0] // only the latest version is supported
 
 require (
 	github.com/brianvoe/gofakeit/v7 v7.0.4
