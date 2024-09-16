@@ -586,7 +586,7 @@ func (c *Client) Run(ctx context.Context, name string, version *string, args []a
 			Method: methodRun,
 			Params: []any{
 				name,
-				version,
+				ZeroAsNone[*string]{Value: version}, // none needs to be passed for functions without version
 				args,
 			},
 		},
