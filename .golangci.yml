@@ -60,9 +60,6 @@ linters:
     # Check exhaustiveness of enum switch statements.
     - exhaustive
 
-    # Checks for pointers to enclosing loop variables.
-    - exportloopref
-
     # Detects nested contexts in loops.
     - fatcontext
 
