@@ -92,33 +92,6 @@ func (c *Client) Version(ctx context.Context) (string, error) {
 // -- AUTH
 //
 
-// SignUp a user using the SIGNUP query defined in a record access method.
-func (c *Client) SignUp(ctx context.Context, ns, db, ac string, vars map[string]any) ([]byte, error) {
-	params := make(map[string]any, len(vars)+3)
-
-	params["NS"] = ns
-	params["DB"] = db
-	params["AC"] = ac
-
-	for key, val := range vars {
-		params[key] = val
-	}
-
-	res, err := c.send(ctx,
-		request{
-			Method: methodSignUp,
-			Params: []any{
-				params,
-			},
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign up: %w", err)
-	}
-
-	return res, nil
-}
-
 // signIn a root, NS, DB or record user against SurrealDB.
 func (c *Client) signIn(ctx context.Context, username, password string) error {
 	res, err := c.send(ctx,
@@ -137,51 +110,6 @@ func (c *Client) signIn(ctx context.Context, username, password string) error {
 	}
 
 	c.token = string(res)
-
-	return nil
-}
-
-// Info	returns the record of an authenticated record user.
-// TODO: return parsed info struct.
-func (c *Client) Info(ctx context.Context) ([]byte, error) {
-	res, err := c.send(ctx,
-		request{
-			Method: methodInfo,
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get auth info: %w", err)
-	}
-
-	return res, nil
-}
-
-func (c *Client) Authenticate(ctx context.Context, token string) error {
-	_, err := c.send(ctx,
-		request{
-			Method: methodAuthenticate,
-			Params: []any{
-				token,
-			},
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to authenticate token: %w", err)
-	}
-
-	return nil
-}
-
-// Invalidate a user's session for the current connection.
-func (c *Client) Invalidate(ctx context.Context) error {
-	_, err := c.send(ctx,
-		request{
-			Method: methodInvalidate,
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to invalidate user: %w", err)
-	}
 
 	return nil
 }
