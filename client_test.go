@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	surrealDBVersion    = "1.5.4"
+	surrealDBVersion    = "2.0.1"
 	containerStartedMsg = "Started web server on "
 )
 
@@ -30,7 +30,7 @@ func TestClient(t *testing.T) {
 
 	defer cleanup()
 
-	_, err := client.Query(ctx, "define table test schemaless", nil)
+	_, err := client.Query(ctx, "DEFINE TABLE test SCHEMALESS;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestClientCRUD(t *testing.T) {
 
 	// QUERY
 
-	res, err = client.Query(ctx, "select * from some where id = $id", map[string]any{
+	res, err = client.Query(ctx, "SELECT * FROM some WHERE id = $id;", map[string]any{
 		"id": modelCreate.ID,
 	})
 	if err != nil {
@@ -178,7 +178,7 @@ func TestClientLive(t *testing.T) {
 
 	// DEFINE TABLE
 
-	_, err := client.Query(ctx, "define table some schemaless", nil)
+	_, err := client.Query(ctx, "DEFINE TABLE some SCHEMALESS;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestClientLive(t *testing.T) {
 
 	// LIVE QUERY
 
-	live, err := client.Live(ctx, "select * from some", nil)
+	live, err := client.Live(ctx, "SELECT * FROM some;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +257,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// DEFINE TABLE
 
-	_, err := client.Query(ctx, "define table some schemaless", nil)
+	_, err := client.Query(ctx, "DEFINE TABLE some SCHEMALESS;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,8 +272,8 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// LIVE QUERY
 
-	live, err := client.Live(ctx, "select * from some where name in $0", map[string]any{
-		"0": []string{"some_name", "some_other_name"},
+	live, err := client.Live(ctx, "SELECT * FROM some WHERE name IN $a;", map[string]any{
+		"a": []string{"some_name", "some_other_name"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -319,11 +319,23 @@ func TestClientLiveFilter(t *testing.T) {
 	assert.Check(t, is.Equal(modelIn.Value, modelCreate.Value))
 	assert.Check(t, is.DeepEqual(modelIn.Slice, modelCreate.Slice))
 
-	liveRes := <-liveResChan
-	liveErr := <-liveErrChan
+	select {
 
-	assert.Check(t, is.Nil(liveErr))
-	assert.Check(t, is.DeepEqual(modelCreate, *liveRes, cmpopts.IgnoreUnexported(ID{})))
+	case liveRes := <-liveResChan:
+		assert.Check(t, is.DeepEqual(modelCreate, *liveRes, cmpopts.IgnoreUnexported(ID{})))
+
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout")
+	}
+
+	select {
+
+	case liveErr := <-liveErrChan:
+		assert.Check(t, is.Nil(liveErr))
+
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout")
+	}
 }
 
 func TestInvalidNamespaceAndDatabaseNames(t *testing.T) {

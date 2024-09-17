@@ -52,7 +52,6 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    if: false # golangci-lint does not yet work with go 1.23
 
     steps:
 
