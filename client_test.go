@@ -36,7 +36,7 @@ func TestClient(t *testing.T) {
 
 	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
 
-	_, err := client.Query(ctx, "define table test schemaless;", nil)
+	_, err := client.Query(ctx, "DEFINE TABLE test SCHEMALESS;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestClientCRUD(t *testing.T) {
 
 	// QUERY
 
-	res, err = client.Query(ctx, "select * from some where id = $id;", map[string]any{
+	res, err = client.Query(ctx, "SELECT * FROM some WHERE id = $id;", map[string]any{
 		"id": modelCreate.ID,
 	})
 	if err != nil {
@@ -222,7 +222,7 @@ func TestClientLive(t *testing.T) {
 
 	// DEFINE TABLE
 
-	_, err := client.Query(ctx, "define table some schemaless;", nil)
+	_, err := client.Query(ctx, "DEFINE TABLE some SCHEMALESS;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +237,7 @@ func TestClientLive(t *testing.T) {
 
 	// LIVE QUERY
 
-	live, err := client.Live(ctx, "select * from some;", nil)
+	live, err := client.Live(ctx, "SELECT * FROM some;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// DEFINE TABLE
 
-	_, err := client.Query(ctx, "define table some schemaless", nil)
+	_, err := client.Query(ctx, "DEFINE TABLE some SCHEMALESS;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +316,7 @@ func TestClientLiveFilter(t *testing.T) {
 
 	// LIVE QUERY
 
-	live, err := client.Live(ctx, "select * from some where name in $a;", map[string]any{
+	live, err := client.Live(ctx, "SELECT * FROM some WHERE name IN $a;", map[string]any{
 		"a": []string{"some_name", "some_other_name"},
 	})
 	if err != nil {

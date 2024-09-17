@@ -33,10 +33,6 @@ func prepareSurreal(ctx context.Context, tb testing.TB, opts ...Option) (*Client
 	namespace := gofakeit.FirstName()
 	database := gofakeit.LastName()
 
-	//	// Testcontainers environment seems to have a problem with the ampersand character,
-	//	// possibly due to it being a special character and not correctly escaped.
-	// password = strings.ReplaceAll(password, "&", "-")
-
 	tb.Logf("Creating database with: username=%s, password=%s, namespace=%s, database=%s",
 		username, password, namespace, database,
 	)

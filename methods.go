@@ -98,6 +98,7 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any) (
 // Bug: LQ params should be evaluated before registering (https://github.com/surrealdb/surrealdb/issues/2641)
 // Bug: parameters do not work with live queries (https://github.com/surrealdb/surrealdb/issues/3602)
 // Feature: Live Query WHERE clause should process Params (https://github.com/surrealdb/surrealdb/issues/4026)
+// Docs: https://surrealdb.com/docs/surrealql/statements/live_select (bottom "other notes")
 //
 // TODO: prevent query from being more than one statement.
 func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<-chan []byte, error) {
