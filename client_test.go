@@ -366,7 +366,7 @@ func TestClientLiveFilter(t *testing.T) {
 	select {
 
 	case liveRes := <-liveResChan:
-		assert.Check(t, is.DeepEqual(modelCreate, *liveRes))
+		assert.Check(t, is.DeepEqual(modelCreate, *liveRes, cmpopts.IgnoreUnexported(ID{})))
 
 	case <-time.After(1 * time.Second):
 		t.Fatal("timeout")
