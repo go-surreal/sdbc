@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,16 +16,10 @@ import (
 )
 
 const (
-	schemeHTTP  = "http"
-	schemeHTTPS = "https"
-
 	schemeWS  = "ws"
 	schemeWSS = "wss"
 
-	pathVersion   = "/version"
 	pathWebsocket = "/rpc"
-
-	versionPrefix = "surrealdb-"
 )
 
 var (
@@ -45,9 +37,8 @@ type Client struct {
 	marshal   Marshal
 	unmarshal Unmarshal
 
-	conf    Config
-	version string
-	token   string
+	conf  Config
+	token string
 
 	conn       *websocket.Conn
 	connCtx    context.Context //nolint:containedctx // runtime context is used for websocket connection
@@ -112,10 +103,6 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 
-	if err := client.readVersion(ctx); err != nil {
-		return nil, fmt.Errorf("failed to read version: %w", err)
-	}
-
 	if err := client.openWebsocket(); err != nil {
 		return nil, err
 	}
@@ -125,39 +112,6 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 	}
 
 	return client, nil
-}
-
-func (c *Client) readVersion(ctx context.Context) error {
-	requestURL := url.URL{
-		Scheme: schemeHTTP,
-		Host:   c.conf.Host,
-		Path:   pathVersion,
-	}
-
-	if c.conf.Secure {
-		requestURL.Scheme = schemeHTTPS
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL.String(), nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	res, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
-	}
-
-	defer res.Body.Close()
-
-	out, err := io.ReadAll(res.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response: %w", err)
-	}
-
-	c.version = strings.TrimPrefix(string(out), versionPrefix)
-
-	return nil
 }
 
 func (c *Client) openWebsocket() error {
@@ -284,10 +238,6 @@ func (c *Client) checkBasicResponse(resp []byte) error {
 	}
 
 	return nil
-}
-
-func (c *Client) DatabaseVersion() string {
-	return c.version
 }
 
 func (c *Client) Marshal(val any) ([]byte, error) {

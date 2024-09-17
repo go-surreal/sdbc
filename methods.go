@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/coder/websocket"
+	"github.com/fxamacker/cbor/v2"
 
 	"golang.org/x/exp/maps"
 )
@@ -45,6 +46,8 @@ const (
 	methodGraphQL = "graphql"
 
 	randomVariablePrefixLength = 32
+
+	versionPrefix = "surrealdb-"
 )
 
 // use specifies or unsets the namespace and/or database for the current connection.
@@ -66,17 +69,23 @@ func (c *Client) use(ctx context.Context, namespace, database string) error {
 }
 
 // Version returns version information about the database/server.
-func (c *Client) Version(ctx context.Context) ([]byte, error) {
+func (c *Client) Version(ctx context.Context) (string, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodVersion,
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get version info: %w", err)
+		return "", fmt.Errorf("failed to get version info: %w", err)
 	}
 
-	return res, nil
+	var version string
+
+	if err := cbor.Unmarshal(res, &version); err != nil {
+		return "", fmt.Errorf("failed to unmarshal version: %w", err)
+	}
+
+	return strings.TrimPrefix(version, versionPrefix), nil
 }
 
 //
@@ -133,7 +142,7 @@ func (c *Client) signIn(ctx context.Context, username, password string) error {
 }
 
 // Info	returns the record of an authenticated record user.
-// TODO: return parsed info struct
+// TODO: return parsed info struct.
 func (c *Client) Info(ctx context.Context) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
@@ -257,7 +266,7 @@ func (c *Client) Upsert(ctx context.Context, id *ID, data any) ([]byte, error) {
 }
 
 // Merge specified data into either all records in a table or a single record.
-// TODO: support "all" records
+// TODO: support "all" records.
 func (c *Client) Merge(ctx context.Context, thing *ID, data any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
@@ -312,7 +321,7 @@ func (c *Client) Delete(ctx context.Context, id *ID) ([]byte, error) {
 	return res, nil
 }
 
-// Select either all records in a table or a single record
+// Select either all records in a table or a single record.
 func (c *Client) Select(ctx context.Context, id *ID) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
@@ -632,7 +641,6 @@ type patch struct {
 }
 
 type GraphqlRequest struct {
-
 	// Query contains the query string to execute (required).
 	Query string `cbor:"query"`
 

@@ -3,11 +3,7 @@ package sdbc
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
@@ -34,8 +30,6 @@ func TestClient(t *testing.T) {
 
 	defer cleanup()
 
-	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
-
 	_, err := client.Query(ctx, "define table test schemaless", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -45,44 +39,6 @@ func TestClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func TestClientReadVersion(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-
-	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		res.WriteHeader(http.StatusOK)
-		res.Write([]byte("surrealdb-" + surrealDBVersion))
-	}))
-	defer testServer.Close()
-
-	hostUrl, err := url.Parse(testServer.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	client := &Client{
-		options: applyOptions(nil),
-		conf: Config{
-			Host: fmt.Sprintf("%s:%s", hostUrl.Hostname(), hostUrl.Port()),
-		},
-	}
-
-	if err = client.readVersion(ctx); err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, surrealDBVersion, client.DatabaseVersion())
-
-	err = client.readVersion(nil)
-	assert.ErrorContains(t, err, "failed to create request")
-
-	client.options.httpClient = &mockHttpClientWithError{}
-
-	err = client.readVersion(ctx)
-	assert.ErrorContains(t, err, "failed to send request")
 }
 
 func TestClientCRUD(t *testing.T) {
