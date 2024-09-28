@@ -17,11 +17,7 @@ const (
 	methodUse     = "use"
 	methodVersion = "version"
 
-	methodSignUp       = "signup"
-	methodSignIn       = "signin"
-	methodInfo         = "info"
-	methodAuthenticate = "authenticate"
-	methodInvalidate   = "invalidate"
+	methodSignIn = "signin"
 
 	methodCreate = "create"
 	methodInsert = "insert"
@@ -265,9 +261,6 @@ func (c *Client) Select(ctx context.Context, id *ID) ([]byte, error) {
 
 	return res, nil
 }
-
-// TODO: SelectRange
-// https://surrealdb.com/docs/surrealdb/surrealql/functions/database/type#typerange
 
 //
 // -- QUERY
