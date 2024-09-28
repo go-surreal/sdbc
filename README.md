@@ -30,6 +30,17 @@ You can find the repository for the official implementation [here](https://githu
 Currently, SDBC is designed for direct use with [SOM](https://github.com/go-surreal/som).
 It's important to note that SDBC is in the early stages of development and is not yet stable or ready for production use.
 
+## Table of Contents
+
+- [What is SurrealDB?](#what-is-surrealdb)
+- [Why SDBC instead of the official client?](#why-sdbc-instead-of-the-official-client)
+- [Features](#features)
+- [Getting Started](#getting-started)
+  - [Installation](#installation)
+  - [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## What is SurrealDB?
 
 SurrealDB is a cutting-edge database system that offers a SQL-style query language with real-time queries  
@@ -57,11 +68,12 @@ all the features required by SOM. It also maintains purity in Go and avoids CGO 
 It is still open whether this project will be maintained after the official client becomes stable
 and usable for SOM.
 
-## Table of Contents
+## Features
 
-- [Getting Started](#getting-started)
-- [Contributing](#contributing)
-- [License](#license)
+- Pure Go implementation without CGO dependencies.
+- Supports schema-full and schema-less data handling.
+- Enables advanced querying and analysis with full graph database functionality.
+- Designed for direct use with [SOM](https://github.com/go-surreal/som).
 
 ## Getting Started
 
@@ -93,7 +105,7 @@ func main() {
 		Password:  "root", 
 		Namespace: "test",
 		Database:  "test",
-	}
+	})
 	
 	if err != nil {
         log.Fatal(err)
@@ -106,7 +118,7 @@ func main() {
 ## Contributing
 
 We welcome contributions! If you'd like to contribute to SDBC, please read our
-[Contributing Guidelines](https://github.com/go-surreal/sdbc/blob/main/CONTRIBUTING.md) 
+[Contributing Guidelines](https://github.com/go-surreal/sdbc/blob/main/CONTRIBUTING.md)
 for instructions on how to get started.
 
 ## License
