@@ -88,7 +88,7 @@ func TestCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var modelQuery1 []baseResponse[someModel]
+	var modelQuery1 []baseResponse[[]someModel]
 
 	err = client.unmarshal(res, &modelQuery1)
 	if err != nil {
@@ -330,15 +330,91 @@ func TestLiveFilter(t *testing.T) {
 	}
 }
 
-func TestKill(t *testing.T) {}
-
 func TestRelate(t *testing.T) {}
 
 func TestInsertRelation(t *testing.T) {}
 
-func TestLetUnset(t *testing.T) {}
+func TestLetUnset(t *testing.T) {
+	t.Parallel()
 
-func TestRun(t *testing.T) {}
+	ctx := context.Background()
+
+	client, cleanup := prepareSurreal(ctx, t)
+	defer cleanup()
+
+	if err := client.Let(ctx, "some_var", 42); err != nil {
+		t.Fatal(err)
+	}
+
+	raw1, err := client.Query(ctx, "RETURN $some_var;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var res1 []baseResponse[int]
+
+	if err = client.unmarshal(raw1, &res1); err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 42, res1[0].Result)
+
+	if err := client.Let(ctx, "some_var", 21); err != nil {
+		t.Fatal(err)
+	}
+
+	raw2, err := client.Query(ctx, "RETURN $some_var;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var res2 []baseResponse[int]
+
+	if err = client.unmarshal(raw2, &res2); err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 21, res2[0].Result)
+
+	if err := client.Unset(ctx, "some_var"); err != nil {
+		t.Fatal(err)
+	}
+
+	raw3, err := client.Query(ctx, "RETURN $some_var;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var res3 []baseResponse[int]
+
+	if err = client.unmarshal(raw3, &res3); err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 0, res3[0].Result)
+}
+
+func TestRun(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	client, cleanup := prepareSurreal(ctx, t)
+	defer cleanup()
+
+	raw, err := client.Run(ctx, "time::now", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var res DateTime
+
+	if err = client.unmarshal(raw, &res); err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Check(t, time.Now().Sub(res.Time) < time.Second)
+}
 
 func TestGraphQL(t *testing.T) {}
 
@@ -347,24 +423,23 @@ func TestGraphQL(t *testing.T) {}
 //
 
 type baseResponse[T any] struct {
-	Result []T    `json:"result"`
-	Status string `json:"status"`
-	Time   string `json:"time"`
+	Result T      `cbor:"result"`
+	Status string `cbor:"status"`
+	Time   string `cbor:"time"`
 }
 
 type liveResponse[T any] struct {
-	ID     []byte `json:"id"`
-	Action string `json:"action"`
-	Result T      `json:"result"`
+	ID     []byte `cbor:"id"`
+	Action string `cbor:"action"`
+	Result T      `cbor:"result"`
 }
 
 type someModel struct {
-	//_     struct{} `cbor:",toarray"`
 	ID    *ID      `cbor:"id,omitempty"`
-	Name  string   `json:"name"`
-	Value int      `json:"value"`
-	Slice []string `json:"slice"`
+	Name  string   `cbor:"name"`
+	Value int      `cbor:"value"`
+	Slice []string `cbor:"slice"`
 
-	CreatedAt DateTime `json:"created_at"`
-	Duration  Duration `json:"duration"`
+	CreatedAt DateTime `cbor:"created_at"`
+	Duration  Duration `cbor:"duration"`
 }
