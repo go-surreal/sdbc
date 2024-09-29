@@ -152,9 +152,108 @@ func TestCRUD(t *testing.T) {
 	assert.Check(t, cmp.DeepEqual(modelUpdate.ID, modelDelete.ID, cmpopts.IgnoreUnexported(ID{})))
 }
 
-func TestInsert(t *testing.T) {}
+func TestInsert(t *testing.T) {
+	t.Parallel()
 
-func TestUpsert(t *testing.T) {}
+	ctx := context.Background()
+
+	client, cleanup := prepareSurreal(ctx, t)
+	defer cleanup()
+
+	// DEFINE TABLE
+
+	tableName := "some"
+
+	_, err := client.Query(ctx, "DEFINE TABLE "+tableName+" SCHEMALESS;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// DEFINE MODEL
+
+	modelIn1 := someModel{
+		Name: "modelIn1",
+	}
+
+	modelIn2 := someModel{
+		Name: "modelIn2",
+	}
+
+	// INSERT
+
+	res, err := client.Insert(ctx, tableName, []any{modelIn1, modelIn2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelInsert []someModel
+
+	err = client.unmarshal(res, &modelInsert)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Check(t, cmp.Equal(modelIn1.Name, modelInsert[0].Name))
+	assert.Check(t, cmp.Equal(modelIn2.Name, modelInsert[1].Name))
+}
+
+func TestUpsert(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	client, cleanup := prepareSurreal(ctx, t)
+	defer cleanup()
+
+	// DEFINE TABLE
+
+	tableName := "some"
+
+	_, err := client.Query(ctx, "DEFINE TABLE "+tableName+" SCHEMALESS;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// DEFINE MODEL
+
+	modelIn := someModel{
+		Name: "create",
+	}
+
+	// CREATE
+
+	res1, err := client.Upsert(ctx, NewULID(tableName), modelIn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelCreated someModel
+
+	err = client.unmarshal(res1, &modelCreated)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Check(t, cmp.Equal(modelIn.Name, modelCreated.Name))
+
+	// UPDATE
+
+	modelIn.Name = "update"
+
+	res2, err := client.Upsert(ctx, modelCreated.ID, modelIn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelUpdated someModel
+
+	err = client.unmarshal(res2, &modelUpdated)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Check(t, cmp.Equal(modelIn.Name, modelUpdated.Name))
+}
 
 func TestMerge(t *testing.T) {}
 

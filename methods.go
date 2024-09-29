@@ -172,7 +172,7 @@ func (c *Client) Update(ctx context.Context, id *ID, data any) ([]byte, error) {
 
 // Upsert replaces either all records in a table or a single record with specified data.
 // Note: Only supported by SurrealDB v2.0.0 and later.
-func (c *Client) Upsert(ctx context.Context, id *ID, data any) ([]byte, error) {
+func (c *Client) Upsert(ctx context.Context, id RecordID, data any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodUpsert,
