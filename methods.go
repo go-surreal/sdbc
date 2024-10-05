@@ -210,7 +210,7 @@ func (c *Client) Merge(ctx context.Context, thing *ID, data any) ([]byte, error)
 
 // Patch either all records in a table or a single record with specified patches.
 // see: https://jsonpatch.com/
-func (c *Client) Patch(ctx context.Context, thing *ID, patches []patch, diff bool) ([]byte, error) {
+func (c *Client) Patch(ctx context.Context, thing *ID, patches []Patch, diff bool) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
 			Method: methodPatch,
@@ -428,7 +428,7 @@ func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 
 // Relate creates a graph relationship between two records.
 // Data is optional and only submitted if it is not nil.
-func (c *Client) Relate(ctx context.Context, in, relation, out string, data any) ([]byte, error) {
+func (c *Client) Relate(ctx context.Context, in *ID, relation string, out *ID, data any) ([]byte, error) {
 	params := []any{
 		in,
 		out,
@@ -557,11 +557,23 @@ type signInParams struct {
 	Pass string `cbor:"pass"`
 }
 
-type patch struct {
-	Op    string `cbor:"op"`
-	Path  string `cbor:"path"`
-	Value any    `cbor:"value"`
+type Patch struct {
+	Op    Operation `cbor:"op"`
+	Path  string    `cbor:"path"`
+	Value any       `cbor:"value"`
+	From  string    `cbor:"from"`
 }
+
+type Operation string
+
+const (
+	OpAdd     Operation = "add"
+	OpRemove  Operation = "remove"
+	OpReplace Operation = "replace"
+	OpCopy    Operation = "copy"
+	OpMove    Operation = "move"
+	OpTest    Operation = "test"
+)
 
 type GraphqlRequest struct {
 	// Query contains the query string to execute (required).

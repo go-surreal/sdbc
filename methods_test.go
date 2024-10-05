@@ -58,7 +58,7 @@ func TestCRUD(t *testing.T) {
 		Value:     42, //nolint:revive // test value
 		Slice:     []string{"a", "b", "c"},
 		CreatedAt: DateTime{time.Now()},
-		Duration:  Duration{time.Second + (5 * time.Nanosecond)},
+		Duration:  &Duration{time.Second + (5 * time.Nanosecond)},
 	}
 
 	res, err := client.Create(ctx, NewULID(thingSome), modelIn)
@@ -255,9 +255,171 @@ func TestUpsert(t *testing.T) {
 	assert.Check(t, cmp.Equal(modelIn.Name, modelUpdated.Name))
 }
 
-func TestMerge(t *testing.T) {}
+func TestMerge(t *testing.T) {
+	t.Parallel()
 
-func TestPatch(t *testing.T) {}
+	ctx := context.Background()
+
+	client, cleanup := prepareSurreal(ctx, t)
+	defer cleanup()
+
+	// DEFINE TABLE
+
+	tableName := "some"
+
+	_, err := client.Query(ctx, "DEFINE TABLE "+tableName+" SCHEMALESS;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// DEFINE MODEL
+
+	modelCreate := someModel{
+		Name:  "create",
+		Value: 42,
+	}
+
+	modelMerge := map[string]any{
+		"name": "merge",
+	}
+
+	// CREATE
+
+	res1, err := client.Create(ctx, NewULID(tableName), modelCreate)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelCreated someModel
+
+	if err = client.unmarshal(res1, &modelCreated); err != nil {
+		t.Fatal(err)
+	}
+
+	modelCreate.ID = modelCreated.ID
+
+	assert.Equal(t, modelCreate.Name, modelCreated.Name)
+	assert.Equal(t, modelCreate.Value, modelCreated.Value)
+
+	// MERGE
+
+	res2, err := client.Merge(ctx, modelCreate.ID, modelMerge)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelMerged someModel
+
+	err = client.unmarshal(res2, &modelMerged)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, modelMerge["name"], modelMerged.Name)
+	assert.Equal(t, modelCreated.Value, modelMerged.Value)
+}
+
+func TestPatch(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	client, cleanup := prepareSurreal(ctx, t)
+	defer cleanup()
+
+	// DEFINE TABLE
+
+	tableName := "some"
+
+	_, err := client.Query(ctx, "DEFINE TABLE "+tableName+" SCHEMALESS;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// DEFINE MODEL
+
+	modelCreate := someModel{
+		Name:      "create",
+		Slice:     []string{"merge", "copy", ""},
+		Duration:  &Duration{time.Minute},
+		CreatedAt: DateTime{time.Now()},
+	}
+
+	modelPatch := []Patch{
+		{
+			Op:    OpTest,
+			Path:  "name",
+			Value: "create",
+		},
+		{
+			Op:    OpAdd,
+			Path:  "value",
+			Value: 42,
+		},
+		{
+			Op:   OpRemove,
+			Path: "duration",
+		},
+		{
+			Op:    OpReplace,
+			Path:  "created_at",
+			Value: DateTime{modelCreate.CreatedAt.Add(time.Second)},
+		},
+		{
+			Op:   OpCopy,
+			From: "slice/1",
+			Path: "slice/2",
+		},
+		{
+			Op:   OpMove,
+			From: "slice/0",
+			Path: "name",
+		},
+	}
+
+	// CREATE
+
+	res1, err := client.Create(ctx, NewULID(tableName), modelCreate)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelCreated someModel
+
+	if err = client.unmarshal(res1, &modelCreated); err != nil {
+		t.Fatal(err)
+	}
+
+	modelCreate.ID = modelCreated.ID
+
+	assert.Equal(t, modelCreate.Name, modelCreated.Name)
+	assert.Equal(t, modelCreate.Value, modelCreated.Value)
+	assert.Equal(t, modelCreate.Slice[0], modelCreated.Slice[0])
+	assert.Equal(t, modelCreate.Slice[1], modelCreated.Slice[1])
+	assert.Equal(t, *modelCreate.Duration, *modelCreated.Duration)
+	assert.Equal(t, modelCreate.CreatedAt.Format(time.RFC3339), modelCreated.CreatedAt.Format(time.RFC3339))
+
+	// PATCH
+
+	res2, err := client.Patch(ctx, modelCreate.ID, modelPatch, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelPatched someModel
+
+	if err = client.unmarshal(res2, &modelPatched); err != nil {
+		t.Fatal(err)
+	}
+
+	// map[created_at:1727683084 id:{8 [some 01J90YZFAJNY9F232YTEJ7YMXH]} name:merge slice:[copy] value:42] (modelPatched map[string]interface {})
+
+	assert.Equal(t, 42, modelPatched.Value)
+	assert.Check(t, modelPatched.Duration == nil)
+	assert.Equal(t, modelCreate.CreatedAt.Add(time.Second).Format(time.RFC3339), modelPatched.CreatedAt.Format(time.RFC3339))
+	assert.Equal(t, modelPatched.Slice[1], modelPatched.Slice[0])
+	assert.Equal(t, modelPatched.Name, modelCreate.Slice[0])
+}
 
 func TestLive(t *testing.T) {
 	t.Parallel()
@@ -429,7 +591,69 @@ func TestLiveFilter(t *testing.T) {
 	}
 }
 
-func TestRelate(t *testing.T) {}
+func TestRelate(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	client, cleanup := prepareSurreal(ctx, t)
+	defer cleanup()
+
+	// DEFINE TABLES
+
+	_, err := client.Query(ctx, "DEFINE TABLE some TYPE NORMAL SCHEMALESS;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.Query(ctx, "DEFINE TABLE other TYPE RELATION SCHEMALESS;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// DEFINE MODEL
+
+	modelIn1 := someModel{
+		Name: "modelIn1",
+	}
+
+	modelIn2 := someModel{
+		Name: "modelIn2",
+	}
+
+	// INSERT
+
+	res1, err := client.Insert(ctx, "some", []any{modelIn1, modelIn2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelInsert []someModel
+
+	err = client.unmarshal(res1, &modelInsert)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Check(t, cmp.Equal(modelIn1.Name, modelInsert[0].Name))
+	assert.Check(t, cmp.Equal(modelIn2.Name, modelInsert[1].Name))
+
+	// RELATE
+
+	res2, err := client.Relate(ctx, modelInsert[0].ID, "other", modelInsert[1].ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelRelate someModel
+
+	err = client.unmarshal(res2, &modelRelate)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//assert.Check(t, cmp.DeepEqual(modelInsert[0].ID, modelRelate.ID, cmpopts.IgnoreUnexported(ID{})))
+}
 
 func TestInsertRelation(t *testing.T) {}
 
@@ -539,6 +763,6 @@ type someModel struct {
 	Value int      `cbor:"value"`
 	Slice []string `cbor:"slice"`
 
-	CreatedAt DateTime `cbor:"created_at"`
-	Duration  Duration `cbor:"duration"`
+	CreatedAt DateTime  `cbor:"created_at"`
+	Duration  *Duration `cbor:"duration"`
 }
