@@ -428,11 +428,11 @@ func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 
 // Relate creates a graph relationship between two records.
 // Data is optional and only submitted if it is not nil.
-func (c *Client) Relate(ctx context.Context, in *ID, relation string, out *ID, data any) ([]byte, error) {
+func (c *Client) Relate(ctx context.Context, in *ID, relation RecordID, out *ID, data any) ([]byte, error) {
 	params := []any{
 		in,
-		out,
 		relation,
+		out,
 	}
 
 	if data != nil {

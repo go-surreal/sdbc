@@ -640,22 +640,120 @@ func TestRelate(t *testing.T) {
 
 	// RELATE
 
-	res2, err := client.Relate(ctx, modelInsert[0].ID, "other", modelInsert[1].ID, nil)
+	res2, err := client.Relate(ctx, modelInsert[0].ID, NewULID("other"), modelInsert[1].ID, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var modelRelate someModel
+	var modelRelate relation
 
 	err = client.unmarshal(res2, &modelRelate)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	//assert.Check(t, cmp.DeepEqual(modelInsert[0].ID, modelRelate.ID, cmpopts.IgnoreUnexported(ID{})))
+	res3, err := client.Select(ctx, modelRelate.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelSelect relation
+
+	err = client.unmarshal(res3, &modelSelect)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, modelRelate.ID.String(), modelSelect.ID.String())
 }
 
-func TestInsertRelation(t *testing.T) {}
+func TestInsertRelation(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	client, cleanup := prepareSurreal(ctx, t)
+	defer cleanup()
+
+	// DEFINE TABLES
+
+	_, err := client.Query(ctx, "DEFINE TABLE some TYPE NORMAL SCHEMALESS;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.Query(ctx, "DEFINE TABLE other TYPE RELATION SCHEMALESS;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// DEFINE MODEL
+
+	modelIn1 := someModel{
+		Name: "modelIn1",
+	}
+
+	modelIn2 := someModel{
+		Name: "modelIn2",
+	}
+
+	// INSERT
+
+	res1, err := client.Insert(ctx, "some", []any{modelIn1, modelIn2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelInsert []someModel
+
+	err = client.unmarshal(res1, &modelInsert)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Check(t, cmp.Equal(modelIn1.Name, modelInsert[0].Name))
+	assert.Check(t, cmp.Equal(modelIn2.Name, modelInsert[1].Name))
+
+	// INSERT RELATION
+
+	rel := relation{
+		In:  modelInsert[0].ID,
+		Out: modelInsert[1].ID,
+	}
+
+	table := "other"
+
+	res2, err := client.InsertRelation(ctx, &table, rel)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelRelation []relation
+
+	err = client.unmarshal(res2, &modelRelation)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, modelRelation[0].In.String(), modelInsert[0].ID.String())
+	assert.Equal(t, modelRelation[0].Out.String(), modelInsert[1].ID.String())
+
+	// INSERT NEXT RELATION
+
+	rel.ID = modelRelation[0].ID
+
+	res3, err := client.InsertRelation(ctx, nil, rel)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var modelRelation2 []relation
+
+	err = client.unmarshal(res3, &modelRelation2)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestLetUnset(t *testing.T) {
 	t.Parallel()
@@ -765,4 +863,10 @@ type someModel struct {
 
 	CreatedAt DateTime  `cbor:"created_at"`
 	Duration  *Duration `cbor:"duration"`
+}
+
+type relation struct {
+	ID  *ID `cbor:"id,omitempty"`
+	In  *ID `cbor:"in"`
+	Out *ID `cbor:"out"`
 }
