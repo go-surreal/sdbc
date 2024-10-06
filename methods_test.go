@@ -837,7 +837,9 @@ func TestRun(t *testing.T) {
 	assert.Check(t, time.Now().Sub(res.Time) < time.Second)
 }
 
-func TestGraphQL(t *testing.T) {}
+func TestGraphQL(t *testing.T) {
+	// TODO: test graphql implementation (not so important right now)
+}
 
 //
 // -- TYPES
