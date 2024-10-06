@@ -82,32 +82,32 @@ and usable for SOM.
 This client implements the [RPC (websocket) interface](https://surrealdb.com/docs/surrealdb/integration/rpc) of SurrealDB.
 The following operations are supported:
 
-| Function                            | Description                                                                                              | Supported |
-|-------------------------------------|----------------------------------------------------------------------------------------------------------|-----------|
-| use [ ns, db ]                      | Specifies or unsets the namespace and/or database for the current connection                             | ✅         |
-| info                                | Returns the record of an authenticated record user                                                       | ❌         |
-| version                             | Returns version information about the database/server                                                    | ✅         |
-| signup  [ NS, DB, AC, … ]           | Signup a user using the SIGNUP query defined in a record access method                                   | ❌         |
-| signin   [NS, DB, AC, … ]           | Signin a root, NS, DB or record user against SurrealDB                                                   | ✅         |
-| authenticate [ token ]              | Authenticate a user against SurrealDB with a token                                                       | ❌         |
-| invalidate                          | Invalidate a user’s session for the current connection                                                   | ❌         |
-| let [ name, value ]                 | Define a variable on the current connection                                                              | ✅         |
-| unset [ name ]                      | Remove a variable from the current connection                                                            | ✅         |
-| live [ table, diff ]                | Initiate a live query                                                                                    | ✅         |
-| kill [ queryUuid ]                  | Kill an active live query                                                                                | ✅         |
-| query [ sql, vars ]                 | Execute a custom query with optional variables                                                           | ✅         |
-| graphql [ query, options? ]         | Execute GraphQL queries against the database                                                             | ❌         |
-| run [ func_name, version, args ]    | Execute built-in functions, custom functions, or machine learning models with optional arguments.        | ✅         |
-| select [ thing ]                    | Select either all records in a table or a single record                                                  | ✅         |
-| create [ thing, data ]              | Create a record with a random or specified ID                                                            | ✅         |
-| insert [ thing, data ]              | Insert one or multiple records in a table                                                                | ✅         |
-| insert_relation [ table, data ]     | Insert a new relation record into a specified table or infer the table from the data                     | ✅         |
-| update [ thing, data ]              | Modify either all records in a table or a single record with specified data if the record already exists | ✅         |
-| upsert [ thing, data ]              | Replace either all records in a table or a single record with specified data                             | ✅         |
-| relate [ in, relation, out, data? ] | Create graph relationships between created records                                                       | ✅         |
-| merge [ thing, data ]               | Merge specified data into either all records in a table or a single record                               | ✅         |
-| patch [ thing, patches, diff ]      | Patch either all records in a table or a single record with specified patches                            | ✅         |
-| delete [ thing ]                    | Delete either all records in a table or a single record                                                  | ✅         |
+| Function                            | Description                                                                                              | Supported     |
+|-------------------------------------|----------------------------------------------------------------------------------------------------------|---------------|
+| use [ ns, db ]                      | Specifies or unsets the namespace and/or database for the current connection                             | ✅             |
+| info                                | Returns the record of an authenticated record user                                                       | ❌ (no need)   |
+| version                             | Returns version information about the database/server                                                    | ✅             |
+| signup  [ NS, DB, AC, … ]           | Signup a user using the SIGNUP query defined in a record access method                                   | ❌ (no need)   |
+| signin   [NS, DB, AC, … ]           | Signin a root, NS, DB or record user against SurrealDB                                                   | ✅             |
+| authenticate [ token ]              | Authenticate a user against SurrealDB with a token                                                       | ❌ (no need)   |
+| invalidate                          | Invalidate a user’s session for the current connection                                                   | ❌ (no need)   |
+| let [ name, value ]                 | Define a variable on the current connection                                                              | ✅             |
+| unset [ name ]                      | Remove a variable from the current connection                                                            | ✅             |
+| live [ table, diff ]                | Initiate a live query                                                                                    | ✅             |
+| kill [ queryUuid ]                  | Kill an active live query                                                                                | ✅             |
+| query [ sql, vars ]                 | Execute a custom query with optional variables                                                           | ✅             |
+| graphql [ query, options? ]         | Execute GraphQL queries against the database                                                             | ⚠️ (not yet)  |
+| run [ func_name, version, args ]    | Execute built-in functions, custom functions, or machine learning models with optional arguments.        | ✅             |
+| select [ thing ]                    | Select either all records in a table or a single record                                                  | ✅             |
+| create [ thing, data ]              | Create a record with a random or specified ID                                                            | ✅             |
+| insert [ thing, data ]              | Insert one or multiple records in a table                                                                | ✅             |
+| insert_relation [ table, data ]     | Insert a new relation record into a specified table or infer the table from the data                     | ✅             |
+| update [ thing, data ]              | Modify either all records in a table or a single record with specified data if the record already exists | ✅             |
+| upsert [ thing, data ]              | Replace either all records in a table or a single record with specified data                             | ✅             |
+| relate [ in, relation, out, data? ] | Create graph relationships between created records                                                       | ✅             |
+| merge [ thing, data ]               | Merge specified data into either all records in a table or a single record                               | ✅             |
+| patch [ thing, patches, diff ]      | Patch either all records in a table or a single record with specified patches                            | ✅             |
+| delete [ thing ]                    | Delete either all records in a table or a single record                                                  | ✅             |
 
 #### Supported data types
 
