@@ -8,26 +8,87 @@ import (
 	"strings"
 
 	"github.com/coder/websocket"
+	"github.com/fxamacker/cbor/v2"
 
 	"golang.org/x/exp/maps"
 )
 
 const (
+	methodUse     = "use"
+	methodVersion = "version"
+
 	methodSignIn = "signin"
-	methodUse    = "use"
-	methodQuery  = "query"
-	methodKill   = "kill"
+
+	methodCreate = "create"
+	methodInsert = "insert"
 	methodUpdate = "update"
+	methodUpsert = "upsert"
+	methodMerge  = "merge"
+	methodPatch  = "patch"
 	methodDelete = "delete"
 	methodSelect = "select"
-	methodCreate = "create"
+
+	methodRelate         = "relate"
+	methodInsertRelation = "insert_relation"
+
+	methodQuery = "query"
 
 	livePrefix = "live"
+	methodKill = "kill"
+
+	methodLet     = "let"
+	methodUnset   = "unset"
+	methodRun     = "run"
+	methodGraphQL = "graphql"
 
 	randomVariablePrefixLength = 32
+
+	versionPrefix = "surrealdb-"
 )
 
-// signIn is a helper method for signing in a user.
+// use specifies or unsets the namespace and/or database for the current connection.
+func (c *Client) use(ctx context.Context, namespace, database string) error {
+	_, err := c.send(ctx,
+		request{
+			Method: methodUse,
+			Params: []any{
+				namespace,
+				database,
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to use ns/db: %w", err)
+	}
+
+	return nil
+}
+
+// Version returns version information about the database/server.
+func (c *Client) Version(ctx context.Context) (string, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodVersion,
+		},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to get version info: %w", err)
+	}
+
+	var version string
+
+	if err := cbor.Unmarshal(res, &version); err != nil {
+		return "", fmt.Errorf("failed to unmarshal version: %w", err)
+	}
+
+	return strings.TrimPrefix(version, versionPrefix), nil
+}
+
+//
+// -- AUTH
+//
+
+// signIn a root, NS, DB or record user against SurrealDB.
 func (c *Client) signIn(ctx context.Context, username, password string) error {
 	res, err := c.send(ctx,
 		request{
@@ -41,7 +102,7 @@ func (c *Client) signIn(ctx context.Context, username, password string) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("could not sign in: %w", err)
+		return fmt.Errorf("failed to sign in: %w", err)
 	}
 
 	c.token = string(res)
@@ -49,25 +110,163 @@ func (c *Client) signIn(ctx context.Context, username, password string) error {
 	return nil
 }
 
-// use is a method to select the namespace and table for the connection.
-func (c *Client) use(ctx context.Context, namespace, database string) error {
-	_, err := c.send(ctx,
+//
+// -- CRUD
+//
+
+// Create a record with a random or specified ID.
+func (c *Client) Create(ctx context.Context, id RecordID, data any) ([]byte, error) {
+	res, err := c.send(ctx,
 		request{
-			Method: methodUse,
+			Method: methodCreate,
 			Params: []any{
-				namespace,
-				database,
+				id,
+				data,
 			},
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
+		return nil, fmt.Errorf("failed to create record: %w", err)
 	}
 
-	return nil
+	return res, nil
 }
 
-// Query is a convenient method for sending a query to the database.
+// Insert one or multiple records in a table.
+// TODO: allow for fixed IDs.
+func (c *Client) Insert(ctx context.Context, table string, data []any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodInsert,
+			Params: []any{
+				table,
+				data,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert records: %w", err)
+	}
+
+	return res, nil
+}
+
+// Update modifies either all records in a table or a single
+// record with specified data if the record already exists.
+func (c *Client) Update(ctx context.Context, id *ID, data any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodUpdate,
+			Params: []any{
+				id,
+				data,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update record: %w", err)
+	}
+
+	return res, nil
+}
+
+// Upsert replaces either all records in a table or a single record with specified data.
+// Note: Only supported by SurrealDB v2.0.0 and later.
+func (c *Client) Upsert(ctx context.Context, id RecordID, data any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodUpsert,
+			Params: []any{
+				id,
+				data,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upsert record: %w", err)
+	}
+
+	return res, nil
+}
+
+// Merge specified data into either all records in a table or a single record.
+// TODO: support "all" records.
+func (c *Client) Merge(ctx context.Context, thing *ID, data any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodMerge,
+			Params: []any{
+				thing,
+				data,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge record(s): %w", err)
+	}
+
+	return res, nil
+}
+
+// Patch either all records in a table or a single record with specified patches.
+// see: https://jsonpatch.com/
+func (c *Client) Patch(ctx context.Context, thing *ID, patches []Patch, diff bool) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodPatch,
+			Params: []any{
+				thing,
+				patches,
+				diff,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to patch record(s): %w", err)
+	}
+
+	return res, nil
+}
+
+// Delete either all records in a table or a single record.
+func (c *Client) Delete(ctx context.Context, id *ID) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodDelete,
+			Params: []any{
+				id,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	return res, nil
+}
+
+// Select either all records in a table or a single record.
+func (c *Client) Select(ctx context.Context, id *ID) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodSelect,
+			Params: []any{
+				id,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	return res, nil
+}
+
+//
+// -- QUERY
+//
+
+// Query executes a custom query with optional variables.
 func (c *Client) Query(ctx context.Context, query string, vars map[string]any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
@@ -84,6 +283,10 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any) (
 
 	return res, nil
 }
+
+//
+// -- LIVE
+//
 
 // Live executes a live query request and returns a channel to receive the results.
 //
@@ -102,6 +305,9 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any) (
 //
 // TODO: prevent query from being more than one statement.
 func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<-chan []byte, error) {
+	// Note: rpc method "live" does not support advanced live queries where filters
+	// are needed, so we use the "query" method to initiate a custom live query.
+
 	varPrefix, err := randString(randomVariablePrefixLength)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random string: %w", err)
@@ -199,6 +405,7 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 	return liveChan, nil
 }
 
+// Kill an active live query.
 func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
@@ -215,70 +422,127 @@ func (c *Client) Kill(ctx context.Context, uuid string) ([]byte, error) {
 	return res, nil
 }
 
-// Select a table or record from the database.
-func (c *Client) Select(ctx context.Context, id *ID) ([]byte, error) {
+//
+// -- RELATIONS
+//
+
+// Relate creates a graph relationship between two records.
+// Data is optional and only submitted if it is not nil.
+func (c *Client) Relate(ctx context.Context, in *ID, relation RecordID, out *ID, data any) ([]byte, error) {
+	params := []any{
+		in,
+		relation,
+		out,
+	}
+
+	if data != nil {
+		params = append(params, data)
+	}
+
 	res, err := c.send(ctx,
 		request{
-			Method: methodSelect,
-			Params: []any{
-				id,
-			},
+			Method: methodRelate,
+			Params: params,
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+		return nil, fmt.Errorf("failed to relate records: %w", err)
 	}
 
 	return res, nil
 }
 
-func (c *Client) Create(ctx context.Context, id RecordID, data any) ([]byte, error) {
+// InsertRelation inserts a new relation record into the database.
+// Data needs to specify both the in and out records.
+// If table is nil, the relation table is inferred from the data record ID field.
+func (c *Client) InsertRelation(ctx context.Context, table *string, data any) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
-			Method: methodCreate,
+			Method: methodInsertRelation,
 			Params: []any{
-				id,
+				table,
 				data,
 			},
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+		return nil, fmt.Errorf("failed to insert relation: %w", err)
 	}
 
 	return res, nil
 }
 
-// Update a table or record in the database like a PUT request.
-func (c *Client) Update(ctx context.Context, id *ID, data any) ([]byte, error) {
-	res, err := c.send(ctx,
+//
+// -- MISC
+//
+
+// Let defines a variable on the current connection.
+func (c *Client) Let(ctx context.Context, name string, value any) error {
+	_, err := c.send(ctx,
 		request{
-			Method: methodUpdate,
+			Method: methodLet,
 			Params: []any{
-				id,
-				data,
+				name,
+				value,
 			},
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+		return fmt.Errorf("failed to set variable: %w", err)
+	}
+
+	return nil
+}
+
+// Unset removes a variable from the current connection.
+func (c *Client) Unset(ctx context.Context, name string) error {
+	_, err := c.send(ctx,
+		request{
+			Method: methodUnset,
+			Params: []any{
+				name,
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to unset variable: %w", err)
+	}
+
+	return nil
+}
+
+// Run executes built-in functions, custom functions, or machine learning models with optional arguments.
+func (c *Client) Run(ctx context.Context, name string, version *string, args []any) ([]byte, error) {
+	res, err := c.send(ctx,
+		request{
+			Method: methodRun,
+			Params: []any{
+				name,
+				ZeroAsNone[*string]{Value: version}, // none needs to be passed for functions without version
+				args,
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run function: %w", err)
 	}
 
 	return res, nil
 }
 
-// Delete a table or a row from the database like a DELETE request.
-func (c *Client) Delete(ctx context.Context, id *ID) ([]byte, error) {
+// GraphQL executes graphql queries against the database.
+// Note: Requires SurrealDB v2.0.0 or later.
+func (c *Client) GraphQL(ctx context.Context, req GraphqlRequest) ([]byte, error) {
 	res, err := c.send(ctx,
 		request{
-			Method: methodDelete,
+			Method: methodGraphQL,
 			Params: []any{
-				id,
+				req,
 			},
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+		return nil, fmt.Errorf("failed to execute graphql query: %w", err)
 	}
 
 	return res, nil
@@ -289,8 +553,37 @@ func (c *Client) Delete(ctx context.Context, id *ID) ([]byte, error) {
 //
 
 type signInParams struct {
-	User string `json:"user"`
-	Pass string `json:"pass"`
+	User string `cbor:"user"`
+	Pass string `cbor:"pass"`
+}
+
+type Patch struct {
+	Op    Operation `cbor:"op"`
+	Path  string    `cbor:"path"`
+	Value any       `cbor:"value"`
+	From  string    `cbor:"from"`
+}
+
+type Operation string
+
+const (
+	OpAdd     Operation = "add"
+	OpRemove  Operation = "remove"
+	OpReplace Operation = "replace"
+	OpCopy    Operation = "copy"
+	OpMove    Operation = "move"
+	OpTest    Operation = "test"
+)
+
+type GraphqlRequest struct {
+	// Query contains the query string to execute (required).
+	Query string `cbor:"query"`
+
+	// Vars may contain variables to be used in the query (optional).
+	Vars map[string]any `cbor:"vars"`
+
+	// Operation is the name of the operation to execute (optional).
+	Operation string `cbor:"operationName"`
 }
 
 //

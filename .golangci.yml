@@ -405,7 +405,9 @@ linters-settings:
       - name: add-constant
         arguments:
           - maxLitCount: "3"
+            allowStrs: '""'
             allowInts: "0,1,-1"
+            allowFloats: "0.0"
             ignoreFuncs: "fmt\\.Errorf"
       - name: line-length-limit
         arguments: [ 120 ]
