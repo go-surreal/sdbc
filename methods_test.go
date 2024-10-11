@@ -77,7 +77,7 @@ func TestCRUD(t *testing.T) {
 	assert.Check(t, cmp.Equal(modelIn.Value, modelCreate.Value))
 	assert.Check(t, cmp.DeepEqual(modelIn.Slice, modelCreate.Slice))
 	assert.Check(t, cmp.Equal(modelIn.CreatedAt.Format(time.RFC3339), modelCreate.CreatedAt.Format(time.RFC3339)))
-	assert.Check(t, cmp.Equal(modelIn.Duration, modelCreate.Duration))
+	assert.Check(t, cmp.Equal(*modelIn.Duration, *modelCreate.Duration))
 
 	// QUERY
 
