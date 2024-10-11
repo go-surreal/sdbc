@@ -75,6 +75,70 @@ and usable for SOM.
 - Enables advanced querying and analysis with full graph database functionality.
 - Designed for direct use with [SOM](https://github.com/go-surreal/som).
 
+### Details
+
+#### Supported operations
+
+This client implements the [RPC (websocket) interface](https://surrealdb.com/docs/surrealdb/integration/rpc) of SurrealDB.
+The following operations are supported:
+
+| Function                            | Description                                                                                              | Supported         |
+|-------------------------------------|----------------------------------------------------------------------------------------------------------|-------------------|
+| use [ ns, db ]                      | Specifies or unsets the namespace and/or database for the current connection                             | ✅                 |
+| info                                | Returns the record of an authenticated record user                                                       | ❌ (no&nbsp;need)  |
+| version                             | Returns version information about the database/server                                                    | ✅                 |
+| signup  [ NS, DB, AC, … ]           | Signup a user using the SIGNUP query defined in a record access method                                   | ❌ (no&nbsp;need)  |
+| signin   [NS, DB, AC, … ]           | Signin a root, NS, DB or record user against SurrealDB                                                   | ✅                 |
+| authenticate [ token ]              | Authenticate a user against SurrealDB with a token                                                       | ❌ (no&nbsp;need)  |
+| invalidate                          | Invalidate a user’s session for the current connection                                                   | ❌ (no&nbsp;need)  |
+| let [ name, value ]                 | Define a variable on the current connection                                                              | ✅                 |
+| unset [ name ]                      | Remove a variable from the current connection                                                            | ✅                 |
+| live [ table, diff ]                | Initiate a live query                                                                                    | ✅                 |
+| kill [ queryUuid ]                  | Kill an active live query                                                                                | ✅                 |
+| query [ sql, vars ]                 | Execute a custom query with optional variables                                                           | ✅                 |
+| graphql [ query, options? ]         | Execute GraphQL queries against the database                                                             | ⚠️ (not&nbsp;yet) |
+| run [ func_name, version, args ]    | Execute built-in functions, custom functions, or machine learning models with optional arguments.        | ✅                 |
+| select [ thing ]                    | Select either all records in a table or a single record                                                  | ✅                 |
+| create [ thing, data ]              | Create a record with a random or specified ID                                                            | ✅                 |
+| insert [ thing, data ]              | Insert one or multiple records in a table                                                                | ✅                 |
+| insert_relation [ table, data ]     | Insert a new relation record into a specified table or infer the table from the data                     | ✅                 |
+| update [ thing, data ]              | Modify either all records in a table or a single record with specified data if the record already exists | ✅                 |
+| upsert [ thing, data ]              | Replace either all records in a table or a single record with specified data                             | ✅                 |
+| relate [ in, relation, out, data? ] | Create graph relationships between created records                                                       | ✅                 |
+| merge [ thing, data ]               | Merge specified data into either all records in a table or a single record                               | ✅                 |
+| patch [ thing, patches, diff ]      | Patch either all records in a table or a single record with specified patches                            | ✅                 |
+| delete [ thing ]                    | Delete either all records in a table or a single record                                                  | ✅                 |
+
+#### Supported data types
+
+This client supports the following [data types](https://surrealdb.com/docs/surrealql/datamodel#data-types) as defined by SurrealDB:
+
+| Type     | Description                                                                                                                                                            | Definition                                                      | Supported            | Go type                                  |
+|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------|----------------------|------------------------------------------|
+| any      | The field will allow any data type supported by SurrealDB.                                                                                                             | (see others)                                                    | ✅                    | any                                      |
+| array    | An array of items. Content and length can be defined.                                                                                                                  | array, array<string>, array<int, 10>                            | ✅                    | []any                                    |
+| bool     | Describes whether something is truthy or not.                                                                                                                          | true, false                                                     | ✅                    | bool                                     |
+| bytes    | Stores a value in a byte array.                                                                                                                                        | bytes, <bytes>value                                             | ✅                    | []byte                                   |
+| datetime | An ISO 8601 compliant data type that stores a date with time and time zone.                                                                                            | (ISO 8601)                                                      | ✅                    | time.Time                                |
+| decimal  | Uses BigDecimal for storing any real number with arbitrary precision.                                                                                                  | -                                                               | ✅                    | float64                                  |
+| duration | Store a value representing a length of time.                                                                                                                           | 1h, 1m, 1h1m1s                                                  | ✅                    | time.Duration                            |
+| float    | Store a value in a 64 bit float.                                                                                                                                       | 1.5, 100.3                                                      | ✅                    | float32, float64                         |
+| geometry | RFC 7946 compliant data type for storing geometry in the GeoJson format.                                                                                               | [(see below)](#supported-geometry-types)                        | ⚠️&nbsp;not&nbsp;yet | [(see below)](#supported-geometry-types) |
+| int      | Store a value in a 64 bit integer.                                                                                                                                     | 1, 2, 3, 4                                                      | ✅                    | int                                      |
+| number   | Store numbers without specifying the type. SurrealDB will store it using the minimal number of bytes.                                                                  | -                                                               | ✅                    | int, float, ...                          |
+| none     | ?                                                                                                                                                                      | -                                                               | ❌                    | -                                        |
+| object   | Store formatted objects containing values of any supported type with no limit to object depth or nesting.                                                              | -                                                               | ✅                    | struct{ ... }, `map[comparable]any`      |
+| literal  | A value that may have multiple representations or formats, similar to an enum or a union type.<br>Can be composed of strings, numbers, objects, arrays, or durations.  | "a" \| "b", \[number, “abc”\], 123   \| 456 \| string \| 1y1m1d | ⚠️&nbsp;kind&nbsp;of | (any)                                    |
+| option   | Makes types optional and guarantees the field to be either empty (NULL) or a value.                                                                                    | option<...>                                                     | ✅                    | * (pointer)                              |
+| range    | A range of possible values. Lower and upper bounds can be set, in the absence of which the range<br>becomes open-ended. A range of integers can be used in a FOR loop. | 0..10, 0..=10, ..10, 'a'..'z'                                   | ❌                    |                                          |
+| record   | Store a reference to another record. The value must be a Record ID.                                                                                                    | record, record<user>, record<user \| administrator>             | ✅                    | *sdbc.ID                                 |
+| set      | A set of items. Similar to array, but items are automatically deduplicated.                                                                                            | set, set<string>, set<int, 10>                                  | ✅                    | []any                                    |
+| string   | Describes a text-like value.                                                                                                                                           | "some", "value"                                                 | ✅                    | string                                   |
+
+#### Supported geometry types
+
+These types are not yet implemented.
+
 ## Getting Started
 
 ### Installation
