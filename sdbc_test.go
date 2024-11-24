@@ -19,6 +19,10 @@ import (
 	"time"
 )
 
+// errAlreadyInProgress is a regular expression that matches the error for a container
+// removal that is already in progress.
+var errAlreadyInProgress = regexp.MustCompile(`removal of container .* is already in progress`)
+
 func prepare(tb testing.TB) {
 	tb.Helper()
 
@@ -135,6 +139,10 @@ func prepareDatabase(
 
 	cleanup := func() {
 		if err := surreal.Terminate(ctx); err != nil {
+			if errAlreadyInProgress.MatchString(err.Error()) {
+				return // this "error" is not caught by the Terminate method even though it is safe to ignore
+			}
+
 			tb.Fatalf("failed to terminate container: %s", err.Error())
 		}
 	}
