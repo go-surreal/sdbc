@@ -11,7 +11,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.7.0
 	github.com/google/go-cmp v0.6.0
 	github.com/testcontainers/testcontainers-go v0.34.0
-	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
+	golang.org/x/exp v0.0.0-20241204233417-43b7b7cde48d
 	gotest.tools/v3 v3.5.1
 )
 
