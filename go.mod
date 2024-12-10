@@ -7,7 +7,7 @@ retract [v0.1.0, v0.7.99] // only the latest version is supported
 require (
 	github.com/brianvoe/gofakeit/v7 v7.1.2
 	github.com/coder/websocket v1.8.12
-	github.com/docker/docker v27.3.1+incompatible
+	github.com/docker/docker v27.4.0+incompatible
 	github.com/fxamacker/cbor/v2 v2.7.0
 	github.com/google/go-cmp v0.6.0
 	github.com/testcontainers/testcontainers-go v0.34.0
