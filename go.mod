@@ -1,6 +1,8 @@
 module github.com/go-surreal/sdbc
 
-go 1.22.7
+go 1.23.0
+
+toolchain go1.24.1
 
 retract [v0.1.0, v0.7.99] // only the latest version is supported
 
@@ -11,7 +13,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.7.0
 	github.com/google/go-cmp v0.6.0
 	github.com/testcontainers/testcontainers-go v0.34.0
-	golang.org/x/exp v0.0.0-20241210194714-1829a127f884
+	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 	gotest.tools/v3 v3.5.1
 )
 
