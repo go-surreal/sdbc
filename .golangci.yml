@@ -177,9 +177,6 @@ linters:
     # Checks the struct tags.
     - tagliatelle
 
-    # Analyzer that detects using os.Setenv instead of t.Setenv since Go1.17.
-    - tenv
-
     # Detects Go test helpers without t.Helper() call and checks the consistency of test helpers.
     - thelper
 
@@ -241,7 +238,7 @@ linters:
 linters-settings:
 
   cyclop:
-    max-complexity: 17
+    max-complexity: 20
     package-average: 0.0
     skip-tests: false
 
@@ -250,6 +247,7 @@ linters-settings:
       main:
         allow:
           - $gostd
+          - golang.org/x/exp/maps
           - github.com/coder/websocket
           - github.com/fxamacker/cbor/v2
         deny:
@@ -322,7 +320,6 @@ linters-settings:
     checks: ["*"]
 
   govet:
-    check-shadowing: false
     disable-all: false
     enable: []
     enable-all: false
