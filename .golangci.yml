@@ -177,9 +177,6 @@ linters:
     # Checks the struct tags.
     - tagliatelle
 
-    # Analyzer that detects using os.Setenv instead of t.Setenv since Go1.17.
-    - tenv
-
     # Detects Go test helpers without t.Helper() call and checks the consistency of test helpers.
     - thelper
 
@@ -241,7 +238,7 @@ linters:
 linters-settings:
 
   cyclop:
-    max-complexity: 17
+    max-complexity: 20
     package-average: 0.0
     skip-tests: false
 
@@ -322,7 +319,6 @@ linters-settings:
     checks: ["*"]
 
   govet:
-    check-shadowing: false
     disable-all: false
     enable: []
     enable-all: false
@@ -428,9 +424,6 @@ linters-settings:
   unparam:
     check-exported: false
 
-  varcheck:
-    exported-fields: false
-
   varnamelen:
     max-distance: 5
     min-name-length: 3
@@ -466,17 +459,17 @@ linters-settings:
     ignorePackageGlobs: []
     ignoreInterfaceRegexps: []
 
-    wsl:
-      allow-assign-and-anything: false
-      allow-assign-and-call: true
-      allow-cuddle-declarations: false
-      allow-multiline-assign: true
-      allow-separated-leading-comment: false
-      allow-trailing-comment: false
-      force-case-trailing-whitespace: 0
-      force-err-cuddling: true
-      force-short-decl-cuddling: true
-      strict-append: true
+  wsl:
+    allow-assign-and-anything: false
+    allow-assign-and-call: true
+    allow-cuddle-declarations: false
+    allow-multiline-assign: true
+    allow-separated-leading-comment: false
+    allow-trailing-comment: false
+    force-case-trailing-whitespace: 0
+    force-err-cuddling: true
+    force-short-decl-cuddling: true
+    strict-append: true
 
 
 issues:

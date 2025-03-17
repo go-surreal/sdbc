@@ -9,8 +9,6 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/fxamacker/cbor/v2"
-
-	"golang.org/x/exp/maps"
 )
 
 const (
@@ -324,7 +322,15 @@ func (c *Client) Live(ctx context.Context, query string, vars map[string]any) (<
 	query = livePrefix + " " + query
 
 	if len(params) > 0 {
-		query = strings.Join(maps.Values(params), "; ") + "; " + query
+		var paramDefs strings.Builder
+
+		for _, value := range params {
+			if _, err := paramDefs.WriteString(value + "; "); err != nil {
+				return nil, fmt.Errorf("failed to write param definition: %w", err)
+			}
+		}
+
+		query = paramDefs.String() + query
 	}
 
 	raw, err := c.send(ctx,
