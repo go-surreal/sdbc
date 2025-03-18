@@ -835,7 +835,7 @@ func TestRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, time.Now().Sub(res.Time) < time.Second)
+	assert.Check(t, time.Since(res.Time) < time.Second)
 }
 
 func TestGraphQL(t *testing.T) {
