@@ -1,9 +1,10 @@
 package sdbc
 
 import (
-	"gotest.tools/v3/assert"
 	"log/slog"
 	"testing"
+
+	"gotest.tools/v3/assert"
 )
 
 func TestEmptyLogHandler(t *testing.T) {

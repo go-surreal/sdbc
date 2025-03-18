@@ -3,9 +3,10 @@ package sdbc
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/brianvoe/gofakeit/v7"
 	"gotest.tools/v3/assert"
-	"testing"
 )
 
 const (

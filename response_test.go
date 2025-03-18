@@ -3,12 +3,13 @@ package sdbc
 import (
 	"context"
 	"errors"
-	"github.com/brianvoe/gofakeit/v7"
-	"gotest.tools/v3/assert"
 	"log/slog"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/brianvoe/gofakeit/v7"
+	"gotest.tools/v3/assert"
 )
 
 func TestClientSubscribeErrorCases(t *testing.T) {

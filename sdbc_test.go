@@ -5,10 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/brianvoe/gofakeit/v7"
-	"github.com/docker/docker/api/types/container"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
 	"log/slog"
 	"net/http"
@@ -17,6 +13,11 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/brianvoe/gofakeit/v7"
+	"github.com/docker/docker/api/types/container"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // errAlreadyInProgress is a regular expression that matches the error for a container

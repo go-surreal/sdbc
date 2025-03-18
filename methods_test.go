@@ -2,11 +2,12 @@ package sdbc
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
-	"testing"
-	"time"
 )
 
 func TestVersion(t *testing.T) {
