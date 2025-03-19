@@ -1,6 +1,7 @@
 package sdbc
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -16,10 +17,10 @@ const (
 )
 
 func (c *Client) subscribe(ctx context.Context) {
-	resChan := make(resultChannel[[]byte])
+	resChan := make(resultChannel[*bytes.Buffer])
 
 	c.waitGroup.Add(1)
-	go func(resChan resultChannel[[]byte]) {
+	go func(resChan resultChannel[*bytes.Buffer]) {
 		defer c.waitGroup.Done()
 
 		defer close(resChan)
@@ -51,7 +52,7 @@ func (c *Client) subscribe(ctx context.Context) {
 
 // read reads a single websocket message.
 // It will reuse buffers in between calls to avoid allocations.
-func (c *Client) read(ctx context.Context) ([]byte, error) {
+func (c *Client) read(ctx context.Context) (*bytes.Buffer, error) {
 	if ctx == nil {
 		return nil, ErrContextNil
 	}
@@ -73,16 +74,15 @@ func (c *Client) read(ctx context.Context) ([]byte, error) {
 	}
 
 	buff := c.buffers.Get()
-	defer c.buffers.Put(buff)
 
 	if _, err = buff.ReadFrom(reader); err != nil {
 		return nil, fmt.Errorf("failed to read message: %w", err)
 	}
 
-	return buff.Bytes(), nil
+	return buff, nil
 }
 
-func (c *Client) handleMessages(resultCh resultChannel[[]byte]) {
+func (c *Client) handleMessages(resultCh resultChannel[*bytes.Buffer]) {
 	for {
 		select {
 
@@ -119,17 +119,20 @@ func (c *Client) handleMessages(resultCh resultChannel[[]byte]) {
 	}
 }
 
-func (c *Client) handleMessage(data []byte) {
+func (c *Client) handleMessage(buf *bytes.Buffer) {
 	var res *response
 
-	if err := c.unmarshal(data, &res); err != nil {
+	if err := c.unmarshal(buf.Bytes(), &res); err != nil {
 		c.logger.ErrorContext(c.connCtx, "Could not unmarshal websocket message.",
-			"data", string(data),
+			"data", buf.String(),
 			"error", err,
 		)
 
+		c.buffers.Put(buf) // Release as soon as possible
+
 		return
 	}
+	c.buffers.Put(buf) // Release as soon as possible
 
 	if res.ID == "" && res.Error != nil {
 		c.logger.ErrorContext(c.connCtx, "Received error message.",
