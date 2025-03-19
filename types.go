@@ -439,13 +439,3 @@ func (t *duration) UnmarshalCBOR(data []byte) error {
 
 	return nil
 }
-
-func result[T any](t T, err error) resultFunc[T] {
-	return func() (T, error) {
-		return t, err
-	}
-}
-
-type resultFunc[T any] func() (T, error)
-
-type resultChannel[T any] chan resultFunc[T]

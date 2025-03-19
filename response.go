@@ -17,37 +17,29 @@ const (
 )
 
 func (c *Client) subscribe(ctx context.Context) {
-	resChan := make(resultChannel[*bytes.Buffer])
-
 	c.waitGroup.Add(1)
-	go func(resChan resultChannel[*bytes.Buffer]) {
-		defer c.waitGroup.Done()
+	defer c.waitGroup.Done()
 
-		defer close(resChan)
-
-		for {
-			buf, err := c.read(ctx)
-			if err != nil {
-				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-					return
-				}
-
-				if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || websocket.CloseStatus(err) != -1 {
-					c.logger.InfoContext(ctx, "Websocket closed.")
-
-					return
-				}
-
-				c.logger.ErrorContext(ctx, "Could not read from websocket.", "error", err)
-
-				continue
+	for {
+		buf, err := c.read(ctx)
+		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return
 			}
 
-			resChan <- result(buf, nil)
-		}
-	}(resChan)
+			if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || websocket.CloseStatus(err) != -1 {
+				c.logger.InfoContext(ctx, "Websocket closed.")
 
-	c.handleMessages(resChan)
+				return
+			}
+
+			c.logger.ErrorContext(ctx, "Could not read from websocket.", "error", err)
+
+			continue
+		}
+
+		go c.handleMessage(buf)
+	}
 }
 
 // read reads a single websocket message.
@@ -73,53 +65,19 @@ func (c *Client) read(ctx context.Context) (*bytes.Buffer, error) {
 		return nil, fmt.Errorf("%w, got %v", ErrExpectedTextMessage, msgType)
 	}
 
-	buff := c.buffers.Get()
+	buf := c.buffers.Get()
 
-	if _, err = buff.ReadFrom(reader); err != nil {
+	if _, err = buf.ReadFrom(reader); err != nil {
 		return nil, fmt.Errorf("failed to read message: %w", err)
 	}
 
-	return buff, nil
-}
-
-func (c *Client) handleMessages(resultCh resultChannel[*bytes.Buffer]) {
-	for {
-		select {
-
-		case <-c.connCtx.Done():
-			{
-				c.logger.DebugContext(c.connCtx, "Context done. Stopping message handler.")
-
-				return
-			}
-
-		case result, more := <-resultCh:
-			{
-				if !more {
-					c.logger.DebugContext(c.connCtx, "Result channel closed. Stopping message handler.")
-
-					return
-				}
-
-				c.waitGroup.Add(1)
-				go func() {
-					defer c.waitGroup.Done()
-
-					data, err := result()
-					if err != nil {
-						c.logger.ErrorContext(c.connCtx, "Could not get result from channel.", "error", err)
-
-						return
-					}
-
-					c.handleMessage(data)
-				}()
-			}
-		}
-	}
+	return buf, nil
 }
 
 func (c *Client) handleMessage(buf *bytes.Buffer) {
+	c.waitGroup.Add(1)
+	defer c.waitGroup.Done()
+
 	var res *response
 
 	if err := c.unmarshal(buf.Bytes(), &res); err != nil {
