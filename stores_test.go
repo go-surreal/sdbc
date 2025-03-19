@@ -2,9 +2,10 @@ package sdbc
 
 import (
 	"bytes"
-	"gotest.tools/v3/assert"
 	"testing"
 	"time"
+
+	"gotest.tools/v3/assert"
 )
 
 func TestStoresGetInvalidAssert(t *testing.T) {

@@ -245,6 +245,8 @@ linters-settings:
   depguard:
     rules:
       main:
+        files:
+          - "!**/*_test\\.go"
         allow:
           - $gostd
           - github.com/coder/websocket

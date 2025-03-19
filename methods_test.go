@@ -2,11 +2,12 @@ package sdbc
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
-	"testing"
-	"time"
 )
 
 func TestVersion(t *testing.T) {
@@ -834,7 +835,7 @@ func TestRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, time.Now().Sub(res.Time) < time.Second)
+	assert.Check(t, time.Since(res.Time) < time.Second)
 }
 
 func TestGraphQL(t *testing.T) {
