@@ -5,14 +5,14 @@ go 1.23.7
 retract [v0.1.0, v0.7.99] // only the latest version is supported
 
 require (
-	github.com/brianvoe/gofakeit/v7 v7.1.2
-	github.com/coder/websocket v1.8.12
-	github.com/docker/docker v27.4.1+incompatible
+	github.com/brianvoe/gofakeit/v7 v7.2.1
+	github.com/coder/websocket v1.8.13
+	github.com/docker/docker v27.5.1+incompatible
 	github.com/fxamacker/cbor/v2 v2.7.0
-	github.com/google/go-cmp v0.6.0
-	github.com/testcontainers/testcontainers-go v0.34.0
+	github.com/google/go-cmp v0.7.0
+	github.com/testcontainers/testcontainers-go v0.35.0
 	golang.org/x/exp v0.0.0-20241210194714-1829a127f884
-	gotest.tools/v3 v3.5.1
+	gotest.tools/v3 v3.5.2
 )
 
 require (
@@ -64,9 +64,9 @@ require (
 	go.opentelemetry.io/otel v1.24.0 // indirect
 	go.opentelemetry.io/otel/metric v1.24.0 // indirect
 	go.opentelemetry.io/otel/trace v1.24.0 // indirect
-	golang.org/x/crypto v0.25.0 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/net v0.27.0 // indirect
-	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/grpc v1.64.1 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
