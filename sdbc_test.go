@@ -105,7 +105,6 @@ func prepareDatabase(
 	tb.Helper()
 
 	req := testcontainers.ContainerRequest{
-		// Name:  "sdbc_" + toSlug(tb.Name()),
 		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
 		Env: map[string]string{
 			"SURREAL_PATH":   "memory",
@@ -156,26 +155,6 @@ func prepareDatabase(
 
 	return host, cleanup
 }
-
-// func toSlug(input string) string {
-// 	// Remove special characters
-// 	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	processedString := reg.ReplaceAllString(input, " ")
-
-// 	// Remove leading and trailing spaces
-// 	processedString = strings.TrimSpace(processedString)
-
-// 	// Replace spaces with dashes
-// 	slug := strings.ReplaceAll(processedString, " ", "-")
-
-// 	// Convert to lowercase
-// 	slug = strings.ToLower(slug)
-
-// 	return slug
-// }
 
 type logger struct{}
 
@@ -321,13 +300,3 @@ func (t *testContext) setErr(err error) {
 
 	t.err = err
 }
-
-//
-// -- HTTP CLIENT
-//
-
-// type mockHttpClientWithError struct{}
-
-// func (m *mockHttpClientWithError) Do(_ *http.Request) (*http.Response, error) {
-// 	return nil, errors.New("mock http client error")
-// }
