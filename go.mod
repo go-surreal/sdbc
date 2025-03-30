@@ -7,10 +7,10 @@ retract [v0.1.0, v0.7.99] // only the latest version is supported
 require (
 	github.com/brianvoe/gofakeit/v7 v7.2.1
 	github.com/coder/websocket v1.8.13
-	github.com/docker/docker v28.0.2+incompatible
-	github.com/fxamacker/cbor/v2 v2.7.0
+	github.com/docker/docker v28.0.4+incompatible
+	github.com/fxamacker/cbor/v2 v2.8.0
 	github.com/google/go-cmp v0.7.0
-	github.com/testcontainers/testcontainers-go v0.35.0
+	github.com/testcontainers/testcontainers-go v0.36.0
 	gotest.tools/v3 v3.5.2
 )
 
@@ -27,6 +27,7 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/ebitengine/purego v0.8.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -49,6 +50,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/shirou/gopsutil/v3 v3.24.5 // indirect
+	github.com/shirou/gopsutil/v4 v4.25.1 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
