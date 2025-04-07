@@ -13,7 +13,7 @@ func TestStoresGetInvalidAssert(t *testing.T) {
 
 	var pool bufPool
 
-	pool.Pool.Put("invalid type")
+	pool.syncPool.Put("invalid type")
 
 	res := pool.Get()
 

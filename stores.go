@@ -12,21 +12,21 @@ import (
 //
 
 type bufPool struct {
-	sync.Pool
+	syncPool sync.Pool
 }
 
 // Get returns a buffer from the pool or
 // creates a new one if the pool is empty.
 func (p *bufPool) Get() *bytes.Buffer {
-	buf := p.Pool.Get()
+	buf := p.syncPool.Get()
 
 	if buf == nil {
-		return &bytes.Buffer{}
+		return bytes.NewBuffer(make([]byte, 0, bytes.MinRead*2))
 	}
 
 	bytesBuf, ok := buf.(*bytes.Buffer)
 	if !ok {
-		return &bytes.Buffer{}
+		return bytes.NewBuffer(make([]byte, 0, bytes.MinRead*2))
 	}
 
 	return bytesBuf
@@ -36,7 +36,7 @@ func (p *bufPool) Get() *bytes.Buffer {
 func (p *bufPool) Put(buf *bytes.Buffer) {
 	buf.Reset()
 
-	p.Pool.Put(buf)
+	p.syncPool.Put(buf)
 }
 
 //
