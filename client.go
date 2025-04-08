@@ -49,8 +49,8 @@ type Client struct {
 	waitGroup sync.WaitGroup
 
 	buffers     bufPool
-	requests    requests
-	liveQueries liveQueries
+	requests    *requests
+	liveQueries *liveQueries
 }
 
 // Config is the configuration for the client.
@@ -100,6 +100,9 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 
 	client.marshal = enc.Marshal
 	client.unmarshal = dec.Unmarshal
+
+	client.requests = NewRequests()
+	client.liveQueries = NewLiveQueries()
 
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 
