@@ -191,3 +191,26 @@ func TestRandBytes_Read(t *testing.T) {
 		wg.Wait()
 	})
 }
+
+func TestRandBytes_Base62Str(t *testing.T) {
+	rb := NewRandBytes()
+
+	t.Run("Concurrency", func(t *testing.T) {
+		t.Parallel()
+
+		const numGoRoutines = 24
+		wg := sync.WaitGroup{}
+		for range numGoRoutines {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				strLen := int(rand.Int32N(256) + 1)
+				str := rb.Base62Str(strLen)
+
+				assert.Equal(t, len(str), strLen)
+			}()
+		}
+		wg.Wait()
+	})
+}
