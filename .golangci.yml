@@ -3,11 +3,9 @@
 run:
   timeout: 5m
 
-
 linters:
   disable-all: true
   enable:
-
     # Check for pass []any as any in variadic func(...any).
     - asasalint
 
@@ -234,9 +232,7 @@ linters:
     # reassign, testpackage
     #
 
-
 linters-settings:
-
   cyclop:
     max-complexity: 20
     package-average: 0.0
@@ -408,7 +404,7 @@ linters-settings:
             allowFloats: "0.0"
             ignoreFuncs: "fmt\\.Errorf"
       - name: line-length-limit
-        arguments: [ 120 ]
+        arguments: [120]
 
   staticcheck:
     checks: ["*"]
@@ -427,7 +423,7 @@ linters-settings:
     check-exported: false
 
   varnamelen:
-    max-distance: 5
+    max-distance: 7
     min-name-length: 3
     check-receiver: false
     check-return: false
@@ -443,9 +439,15 @@ linters-settings:
       - to
       - os
       - wg
+      - i
     ignore-decls:
       - wg sync.WaitGroup
       - t T
+  nlreturn:
+    # Size of the block (including return statement that is still "OK")
+    # so no return split required.
+    # Default: 1
+    block-size: 3
 
   wrapcheck:
     ignoreSigs:
@@ -472,7 +474,6 @@ linters-settings:
     force-err-cuddling: true
     force-short-decl-cuddling: true
     strict-append: true
-
 
 issues:
   exclude-files:
