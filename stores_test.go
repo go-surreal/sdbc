@@ -3,6 +3,7 @@ package sdbc
 import (
 	"bytes"
 	"math/rand/v2"
+	"sync"
 	"testing"
 	"time"
 
@@ -164,9 +165,12 @@ func TestRandBytes_Read(t *testing.T) {
 		t.Parallel()
 
 		const numGoRoutines = 24
-		done := make(chan bool)
+		wg := sync.WaitGroup{}
 		for range numGoRoutines {
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
+
 				origBytes := make([]byte, rand.Uint32N(256)+1)
 				origLen := len(origBytes)
 				origCap := cap(origBytes)
@@ -182,12 +186,8 @@ func TestRandBytes_Read(t *testing.T) {
 					!bytes.Equal(b, origBytes),
 					"Bytes were not modified",
 				)
-
-				done <- true
 			}()
 		}
-		for range numGoRoutines {
-			<-done
-		}
+		wg.Wait()
 	})
 }
