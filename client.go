@@ -147,7 +147,7 @@ func (c *Client) openWebsocket() error {
 		return fmt.Errorf("failed to open websocket connection: %w", err)
 	}
 
-	conn.SetReadLimit(c.options.readLimit)
+	conn.SetReadLimit(c.readLimit)
 
 	c.conn = conn
 

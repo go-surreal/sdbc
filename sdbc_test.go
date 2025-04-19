@@ -67,7 +67,7 @@ func prepareClient(
 	opts = append(
 		[]Option{
 			WithLogger(slog.New(newLogger(tb, nil))),
-			WithHttpClient(http.DefaultClient),
+			WithHTTPClient(http.DefaultClient),
 			WithTimeout(defaultTimeout),
 			WithReadLimit(defaultReadLimit),
 		},
