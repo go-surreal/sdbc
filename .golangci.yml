@@ -397,7 +397,7 @@ linters:
         - t T
 
     wrapcheck:
-      ignoreSigs:
+      ignore-sigs:
         - .Errorf(
         - errors.New(
         - errors.Unwrap(
@@ -438,8 +438,6 @@ linters:
 
 
 issues:
-  exclude-files:
-    - ".*_test\\.go"
   max-issues-per-linter: 0
   max-same-issues: 0
   new: false
