@@ -101,8 +101,8 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 	client.marshal = enc.Marshal
 	client.unmarshal = dec.Unmarshal
 
-	client.requests = NewRequests()
-	client.liveQueries = NewLiveQueries()
+	client.requests = newRequests()
+	client.liveQueries = newLiveQueries()
 
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 

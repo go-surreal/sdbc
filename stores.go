@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	RequestKeyLength = 16
-	BytesInUint64    = 8
+	requestKeyLength = 16
+	bytesInUint64    = 8
 	charset          = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" // reduced base64
 )
 
@@ -27,9 +27,9 @@ type bufPool struct {
 	syncPool sync.Pool
 }
 
-// Get returns a buffer from the pool or
+// get returns a buffer from the pool or
 // creates a new one if the pool is empty.
-func (p *bufPool) Get() *bytes.Buffer {
+func (p *bufPool) get() *bytes.Buffer {
 	buf := p.syncPool.Get()
 
 	if buf == nil {
@@ -44,8 +44,8 @@ func (p *bufPool) Get() *bytes.Buffer {
 	return bytesBuf
 }
 
-// Put returns a buffer into the pool.
-func (p *bufPool) Put(buf *bytes.Buffer) {
+// put returns a buffer into the pool.
+func (p *bufPool) put(buf *bytes.Buffer) {
 	buf.Reset()
 
 	p.syncPool.Put(buf)
@@ -55,7 +55,7 @@ func (p *bufPool) Put(buf *bytes.Buffer) {
 // -- REQUESTS
 //
 
-func NewRequests() *requests {
+func newRequests() *requests {
 	return &requests{
 		store: map[string]chan *output{},
 	}
@@ -126,7 +126,7 @@ func (r *requests) len() int {
 // -- LIVE QUERIES
 //
 
-func NewLiveQueries() *liveQueries {
+func newLiveQueries() *liveQueries {
 	return &liveQueries{
 		store: map[string]chan []byte{},
 	}
@@ -183,55 +183,55 @@ func (l *liveQueries) reset() {
 // -- HELPER
 //
 
-var randBytes = NewRandBytes()
+var defaultRandBytes = newRandBytes()
 
-func NewRandBytes() *RandBytes {
-	randomBytes := make([]byte, BytesInUint64*2)
+func newRandBytes() *randBytes {
+	randomBytes := make([]byte, bytesInUint64*2)
 
 	if _, err := cryptorand.Read(randomBytes); err != nil {
 		panic("unreachable")
 	}
 
-	return &RandBytes{
+	return &randBytes{
 		//nolint:gosec // no security required
 		rng: rand.New(rand.NewPCG(
 			binary.LittleEndian.Uint64(randomBytes[:8]),
 			binary.LittleEndian.Uint64(randomBytes[8:]),
 		)),
-		bytesForUint64: make([]byte, BytesInUint64),
+		bytesForUint64: make([]byte, bytesInUint64),
 	}
 }
 
-type RandBytes struct {
+type randBytes struct {
 	mut            sync.Mutex
 	rng            *rand.Rand
 	bytesForUint64 []byte
 }
 
 // Read fills bytes with random bytes. It never returns an error, and always fills bytes entirely.
-func (rb *RandBytes) Read(bytes []byte) {
+func (rb *randBytes) read(bytes []byte) {
 	numBytes := len(bytes)
-	numUint64s := numBytes / BytesInUint64
-	remainingBytes := numBytes % BytesInUint64
+	numUint64s := numBytes / bytesInUint64
+	remainingBytes := numBytes % bytesInUint64
 
 	rb.mut.Lock()
 	defer rb.mut.Unlock()
 
 	// Fill the slice with 8-byte chunks
 	for i := range numUint64s {
-		from := i * BytesInUint64
-		to := (i + 1) * BytesInUint64
+		from := i * bytesInUint64
+		to := (i + 1) * bytesInUint64
 		binary.LittleEndian.PutUint64(bytes[from:to], rb.rng.Uint64())
 	}
 
 	// Handle remaining bytes (if any)
 	if remainingBytes > 0 {
 		binary.LittleEndian.PutUint64(rb.bytesForUint64[0:], rb.rng.Uint64())
-		copy(bytes[numUint64s*BytesInUint64:], rb.bytesForUint64[:remainingBytes])
+		copy(bytes[numUint64s*bytesInUint64:], rb.bytesForUint64[:remainingBytes])
 	}
 }
 
-func (rb *RandBytes) Base62Str(length int) string {
+func (rb *randBytes) base62Str(length int) string {
 	buf := make([]byte, length)
 
 	rb.mut.Lock()
@@ -248,8 +248,8 @@ func (rb *RandBytes) Base62Str(length int) string {
 // Fastest, but random distribution is not uniform.
 // Not security-critical in this case, so acceptable.
 func newRequestKey() string {
-	key := make([]byte, RequestKeyLength)
-	randBytes.Read(key)
+	key := make([]byte, requestKeyLength)
+	defaultRandBytes.read(key)
 
 	for i, b := range key {
 		key[i] = charset[int(b)%charsetLen]

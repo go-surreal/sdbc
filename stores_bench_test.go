@@ -37,10 +37,10 @@ func BenchmarkNewRequestKey5(b *testing.B) {
 	}
 }
 
-// Uniform distribution, but slower and variable key length (<= RequestKeyLength).
+// Uniform distribution, but slower and variable key length (<= requestKeyLength).
 func newRequestKey5() string {
-	key := make([]byte, RequestKeyLength)
-	randBytes.Read(key)
+	key := make([]byte, requestKeyLength)
+	defaultRandBytes.read(key)
 
 	offs := 0
 	for i, b := range key {
@@ -60,20 +60,20 @@ func newRequestKey5() string {
 
 // Similar to official driver.
 func newRequestKey2() string {
-	return randBytes.Base62Str(RequestKeyLength)
+	return defaultRandBytes.base62Str(requestKeyLength)
 }
 
 // Using simpler rng, and base64.
 func newRequestKey1() string {
-	key := make([]byte, RequestKeyLength)
-	randBytes.Read(key)
+	key := make([]byte, requestKeyLength)
+	defaultRandBytes.read(key)
 
 	return base64.RawURLEncoding.EncodeToString(key)
 }
 
 // Original uuid-like implementation.
 func newRequestKey0() string {
-	key := make([]byte, RequestKeyLength)
+	key := make([]byte, requestKeyLength)
 
 	if _, err := cryptorand.Read(key); err != nil {
 		return "" // TODO: error?

@@ -17,7 +17,7 @@ func TestStoresGetInvalidAssert(t *testing.T) {
 
 	pool.syncPool.Put("invalid type")
 
-	res := pool.Get()
+	res := pool.get()
 
 	assert.Check(t, res != nil)
 	assert.Check(t, bytes.Equal(res.Bytes(), []byte{}))
@@ -26,7 +26,7 @@ func TestStoresGetInvalidAssert(t *testing.T) {
 func TestRequestsUnknownKey(t *testing.T) {
 	t.Parallel()
 
-	var req *requests = NewRequests()
+	var req *requests = newRequests()
 
 	_, ok := req.get("unknown key")
 
@@ -36,7 +36,7 @@ func TestRequestsUnknownKey(t *testing.T) {
 func TestRequestsReset(t *testing.T) {
 	t.Parallel()
 
-	var req *requests = NewRequests()
+	var req *requests = newRequests()
 
 	req.prepare()
 	req.prepare()
@@ -54,7 +54,7 @@ func TestRequestsReset(t *testing.T) {
 func TestLiveQueriesGetErrorCases(t *testing.T) {
 	t.Parallel()
 
-	var lq *liveQueries = NewLiveQueries()
+	var lq *liveQueries = newLiveQueries()
 
 	_, ok := lq.get("unknown_key", false)
 	assert.Check(t, !ok)
@@ -63,7 +63,7 @@ func TestLiveQueriesGetErrorCases(t *testing.T) {
 func TestLiveQueriesDel(t *testing.T) {
 	t.Parallel()
 
-	var lq *liveQueries = NewLiveQueries()
+	var lq = newLiveQueries()
 
 	ch, ok := lq.get("some_key", true)
 	assert.Check(t, ok)
@@ -79,12 +79,12 @@ func TestLiveQueriesDel(t *testing.T) {
 
 func TestNewRandBytes(t *testing.T) {
 	t.Parallel()
-	// Basic test to ensure that NewRandBytes doesn't panic.
-	_ = NewRandBytes()
+	// Basic test to ensure that newRandBytes doesn't panic.
+	_ = newRandBytes()
 }
 
 func TestRandBytes_Read(t *testing.T) {
-	rb := NewRandBytes()
+	rb := newRandBytes()
 
 	t.Run("Full Uint64s", func(t *testing.T) {
 		t.Parallel()
@@ -93,7 +93,7 @@ func TestRandBytes_Read(t *testing.T) {
 		b := make([]byte, len(origBytes))
 		copy(b, origBytes)
 
-		rb.Read(b)
+		rb.read(b)
 
 		assert.Check(t,
 			!bytes.Equal(b, origBytes),
@@ -108,7 +108,7 @@ func TestRandBytes_Read(t *testing.T) {
 		b := make([]byte, len(origBytes))
 		copy(b, origBytes)
 
-		rb.Read(b)
+		rb.read(b)
 
 		assert.Check(t,
 			!bytes.Equal(b, origBytes),
@@ -121,7 +121,7 @@ func TestRandBytes_Read(t *testing.T) {
 
 		b := make([]byte, 0)
 
-		rb.Read(b) // Should not panic
+		rb.read(b) // Should not panic
 
 		assert.Check(t,
 			len(b) == 0,
@@ -136,8 +136,8 @@ func TestRandBytes_Read(t *testing.T) {
 
 		bytes1 := make([]byte, numBytes)
 		bytes2 := make([]byte, numBytes)
-		rb.Read(bytes1)
-		rb.Read(bytes2)
+		rb.read(bytes1)
+		rb.read(bytes2)
 		// Check if the two byte slices are different.
 		// This doesn't guarantee randomness, but it does ensure the generator is advancing.
 		assert.Check(t,
@@ -153,7 +153,7 @@ func TestRandBytes_Read(t *testing.T) {
 		b := make([]byte, len(origBytes))
 		copy(b, origBytes)
 
-		rb.Read(b)
+		rb.read(b)
 
 		assert.Check(t,
 			!bytes.Equal(b, origBytes),
@@ -178,7 +178,7 @@ func TestRandBytes_Read(t *testing.T) {
 				b := make([]byte, origLen)
 				copy(b, origBytes)
 
-				rb.Read(b)
+				rb.read(b)
 
 				assert.Equal(t, len(b), origLen)
 				assert.Equal(t, cap(b), origCap)
@@ -193,7 +193,7 @@ func TestRandBytes_Read(t *testing.T) {
 }
 
 func TestRandBytes_Base62Str(t *testing.T) {
-	rb := NewRandBytes()
+	rb := newRandBytes()
 
 	t.Run("Concurrency", func(t *testing.T) {
 		t.Parallel()
@@ -206,7 +206,7 @@ func TestRandBytes_Base62Str(t *testing.T) {
 				defer wg.Done()
 
 				strLen := int(rand.Int32N(256) + 1)
-				str := rb.Base62Str(strLen)
+				str := rb.base62Str(strLen)
 
 				assert.Equal(t, len(str), strLen)
 			}()
