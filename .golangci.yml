@@ -324,6 +324,11 @@ linters:
         - map
         - chan
 
+    nlreturn:
+      # Size of the block (including return statement that is still "OK")
+      # so no return split required.
+      block-size: 3
+
     nolintlint:
       require-explanation: true
       require-specific: true
@@ -376,7 +381,7 @@ linters:
       check-exported: false
 
     varnamelen:
-      max-distance: 5
+      max-distance: 10
       min-name-length: 3
       check-receiver: false
       check-return: false
@@ -392,6 +397,7 @@ linters:
         - to
         - os
         - wg
+        - i
       ignore-decls:
         - wg sync.WaitGroup
         - t T
