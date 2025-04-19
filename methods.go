@@ -601,7 +601,7 @@ func (c *Client) send(ctx context.Context, req request) ([]byte, error) {
 	defer c.checkWebsocketConn(err)
 
 	reqID, resCh := c.requests.prepare()
-	defer c.requests.cleanup(reqID)
+	defer c.requests.del(reqID)
 
 	req.ID = reqID
 

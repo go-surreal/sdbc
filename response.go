@@ -65,7 +65,7 @@ func (c *Client) read(ctx context.Context) (*bytes.Buffer, error) {
 		return nil, fmt.Errorf("%w, got %v", ErrExpectedTextMessage, msgType)
 	}
 
-	buf := c.buffers.Get()
+	buf := c.buffers.get()
 
 	if _, err = buf.ReadFrom(reader); err != nil {
 		return nil, fmt.Errorf("failed to read message: %w", err)
@@ -86,11 +86,11 @@ func (c *Client) handleMessage(buf *bytes.Buffer) {
 			"error", err,
 		)
 
-		c.buffers.Put(buf) // Release as soon as possible
+		c.buffers.put(buf) // Release as soon as possible
 
 		return
 	}
-	c.buffers.Put(buf) // Release as soon as possible
+	c.buffers.put(buf) // Release as soon as possible
 
 	if res.ID == "" && res.Error != nil {
 		c.logger.ErrorContext(c.connCtx, "Received error message.",
