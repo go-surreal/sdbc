@@ -76,23 +76,18 @@ type Config struct {
 	// It will automatically be created if it does not exist.
 	Database string
 
-	Cbor CborConfig
-}
-
-type CborConfig struct {
-
-	// MaxNestedLevels specifies the max nested levels allowed for any combination of CBOR array, maps, and tags.
-	// Default is 32 levels and it can be set to [4, 65535]. Note that higher maximum levels of nesting can
+	// CborMaxNestedLevels specifies the max nested levels allowed for any combination of CBOR array, maps, and tags.
+	// Default is 32 levels, minimum is 4, maximum is 65535. Note that higher maximum levels of nesting can
 	// require larger amounts of stack to deserialize. Don't increase this higher than you require.
-	MaxNestedLevels int
+	CborMaxNestedLevels int
 
-	// MaxArrayElements specifies the max number of elements for CBOR arrays.
-	// Default is 128*1024=131072 and it can be set to [16, 2147483647]
-	MaxArrayElements int
+	// CborMaxArrayElements specifies the max number of elements for CBOR arrays.
+	// Default is 128*1024=131072, minimum is 16, maximum is 2147483647.
+	CborMaxArrayElements int
 
-	// MaxMapPairs specifies the max number of key-value pairs for CBOR maps.
-	// Default is 128*1024=131072 and it can be set to [16, 2147483647]
-	MaxMapPairs int
+	// CborMaxMapPairs specifies the max number of key-value pairs for CBOR maps.
+	// Default is 128*1024=131072, minimum is 16, maximum is 2147483647.
+	CborMaxMapPairs int
 }
 
 // NewClient creates a new client and connects to
@@ -106,9 +101,12 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 	encOpts := cbor.EncOptions{}
 
 	decOpts := cbor.DecOptions{
-		MaxNestedLevels:  conf.Cbor.MaxNestedLevels,
-		MaxArrayElements: conf.Cbor.MaxArrayElements,
-		MaxMapPairs:      conf.Cbor.MaxMapPairs,
+		MaxNestedLevels:   conf.CborMaxNestedLevels,
+		MaxArrayElements:  conf.CborMaxArrayElements,
+		MaxMapPairs:       conf.CborMaxMapPairs,
+		DupMapKey:         cbor.DupMapKeyQuiet,            // let the database handle that
+		ExtraReturnErrors: cbor.ExtraDecErrorUnknownField, // prevents hidden errors
+		UTF8:              cbor.UTF8RejectInvalid,         // reject invalid UTF-8
 	}
 
 	encTags := cbor.NewTagSet()
