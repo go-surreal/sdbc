@@ -532,9 +532,9 @@ func TestLiveFilter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	liveResChan := make(chan *someModel)
-	liveErrChan := make(chan error)
+	// Use buffered channels, so they do not block and can both be checked correctly down below.
+	liveResChan := make(chan *someModel, 1)
+	liveErrChan := make(chan error, 1)
 
 	go func() {
 		defer close(liveResChan)
@@ -573,20 +573,20 @@ func TestLiveFilter(t *testing.T) {
 	assert.Check(t, cmp.Equal(modelIn.Value, modelCreate.Value))
 	assert.Check(t, cmp.DeepEqual(modelIn.Slice, modelCreate.Slice))
 
+	// Prioritize checking the error channel (liveErrChan) to handle any errors
+	// before processing results from the response channel (liveResChan).
 	select {
-
-	case liveRes := <-liveResChan:
-		assert.Check(t, cmp.DeepEqual(modelCreate, *liveRes, cmpopts.IgnoreUnexported(ID{})))
-
+	case liveErr := <-liveErrChan:
+		if liveErr != nil {
+			t.Fatal(liveErr)
+		}
 	case <-time.After(1 * time.Second):
 		t.Fatal("timeout")
 	}
 
 	select {
-
-	case liveErr := <-liveErrChan:
-		assert.Check(t, cmp.Nil(liveErr))
-
+	case liveRes := <-liveResChan:
+		assert.Check(t, cmp.DeepEqual(modelCreate, *liveRes, cmpopts.IgnoreUnexported(ID{})))
 	case <-time.After(1 * time.Second):
 		t.Fatal("timeout")
 	}
