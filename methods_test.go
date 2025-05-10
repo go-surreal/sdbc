@@ -532,7 +532,7 @@ func TestLiveFilter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	// Use buffered channels, so they do not block and can both be checked correctly down below.
 	liveResChan := make(chan *someModel, 1)
 	liveErrChan := make(chan error, 1)
 
