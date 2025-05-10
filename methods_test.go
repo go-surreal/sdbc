@@ -576,21 +576,17 @@ func TestLiveFilter(t *testing.T) {
 	// Prioritize checking the error channel (liveErrChan) to handle any errors
 	// before processing results from the response channel (liveResChan).
 	select {
-
 	case liveErr := <-liveErrChan:
 		if liveErr != nil {
 			t.Fatal(liveErr)
 		}
-
 	case <-time.After(1 * time.Second):
 		t.Fatal("timeout")
 	}
 
 	select {
-
 	case liveRes := <-liveResChan:
 		assert.Check(t, cmp.DeepEqual(modelCreate, *liveRes, cmpopts.IgnoreUnexported(ID{})))
-
 	case <-time.After(1 * time.Second):
 		t.Fatal("timeout")
 	}
