@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	surrealDBVersion    = "2.3.0"
+	surrealDBVersion    = "3.0.0-alpha.3"
 	containerStartedMsg = "Started web server on "
 )
 
