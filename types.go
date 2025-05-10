@@ -399,7 +399,10 @@ type responseError struct {
 }
 
 type liveQueryID struct {
-	ID []byte `json:"id"`
+	ID     []byte          `json:"id"`
+	Action string          `json:"action"`
+	Record []string        `json:"record"`
+	Result cbor.RawMessage `json:"result"`
 }
 
 //

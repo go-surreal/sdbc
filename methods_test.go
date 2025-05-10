@@ -533,8 +533,8 @@ func TestLiveFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	liveResChan := make(chan *someModel)
-	liveErrChan := make(chan error)
+	liveResChan := make(chan *someModel, 1)
+	liveErrChan := make(chan error, 1)
 
 	go func() {
 		defer close(liveResChan)
@@ -575,8 +575,10 @@ func TestLiveFilter(t *testing.T) {
 
 	select {
 
-	case liveRes := <-liveResChan:
-		assert.Check(t, cmp.DeepEqual(modelCreate, *liveRes, cmpopts.IgnoreUnexported(ID{})))
+	case liveErr := <-liveErrChan:
+		if liveErr != nil {
+			t.Fatal(liveErr)
+		}
 
 	case <-time.After(1 * time.Second):
 		t.Fatal("timeout")
@@ -584,8 +586,8 @@ func TestLiveFilter(t *testing.T) {
 
 	select {
 
-	case liveErr := <-liveErrChan:
-		assert.Check(t, cmp.Nil(liveErr))
+	case liveRes := <-liveResChan:
+		assert.Check(t, cmp.DeepEqual(modelCreate, *liveRes, cmpopts.IgnoreUnexported(ID{})))
 
 	case <-time.After(1 * time.Second):
 		t.Fatal("timeout")
@@ -853,9 +855,10 @@ type baseResponse[T any] struct {
 }
 
 type liveResponse[T any] struct {
-	ID     []byte `cbor:"id"`
-	Action string `cbor:"action"`
-	Result T      `cbor:"result"`
+	ID     []byte   `cbor:"id"`
+	Record []string `cbor:"record"`
+	Action string   `cbor:"action"`
+	Result T        `cbor:"result"`
 }
 
 type someModel struct {
