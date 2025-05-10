@@ -573,6 +573,8 @@ func TestLiveFilter(t *testing.T) {
 	assert.Check(t, cmp.Equal(modelIn.Value, modelCreate.Value))
 	assert.Check(t, cmp.DeepEqual(modelIn.Slice, modelCreate.Slice))
 
+	// Prioritize checking the error channel (liveErrChan) to handle any errors
+	// before processing results from the response channel (liveResChan).
 	select {
 
 	case liveErr := <-liveErrChan:
