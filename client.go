@@ -104,9 +104,9 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 		MaxNestedLevels:   conf.CborMaxNestedLevels,
 		MaxArrayElements:  conf.CborMaxArrayElements,
 		MaxMapPairs:       conf.CborMaxMapPairs,
-		DupMapKey:         cbor.DupMapKeyQuiet,            // let the database handle that
-		ExtraReturnErrors: cbor.ExtraDecErrorUnknownField, // prevents hidden errors
-		UTF8:              cbor.UTF8RejectInvalid,         // reject invalid UTF-8
+		DupMapKey:         cbor.DupMapKeyQuiet,    // let the database handle that
+		ExtraReturnErrors: cbor.ExtraDecErrorNone, // ignore missing fields (currently required)
+		UTF8:              cbor.UTF8RejectInvalid, // reject invalid UTF-8
 	}
 
 	encTags := cbor.NewTagSet()

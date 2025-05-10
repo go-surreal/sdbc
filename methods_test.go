@@ -855,10 +855,9 @@ type baseResponse[T any] struct {
 }
 
 type liveResponse[T any] struct {
-	ID     []byte   `cbor:"id"`
-	Record []string `cbor:"record"`
-	Action string   `cbor:"action"`
-	Result T        `cbor:"result"`
+	ID     []byte `cbor:"id"`
+	Action string `cbor:"action"`
+	Result T      `cbor:"result"`
 }
 
 type someModel struct {
