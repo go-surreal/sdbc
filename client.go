@@ -18,7 +18,7 @@ import (
 const (
 	CborMinNestedLevels = 4
 	CborMaxNestedLevels = 65535
-	
+
 	CborMinArrayElements = 16
 	CborMaxArrayElements = 2147483647
 
