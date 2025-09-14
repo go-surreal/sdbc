@@ -30,7 +30,7 @@ jobs:
           path_to_tool_versions: "./.tool-versions"
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ steps.asdf.outputs.golang_version }}
           check-latest: true
@@ -65,7 +65,7 @@ jobs:
           path_to_tool_versions: "./.tool-versions"
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ steps.asdf.outputs.golang_version }}
           check-latest: true
@@ -103,7 +103,7 @@ jobs:
           path_to_tool_versions: "./.tool-versions"
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ steps.asdf.outputs.golang_version }}
           check-latest: true
