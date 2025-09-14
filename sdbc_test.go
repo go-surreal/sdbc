@@ -3,25 +3,29 @@ package sdbc
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"github.com/brianvoe/gofakeit/v7"
-	"github.com/docker/docker/api/types/container"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
 	"log/slog"
 	"net/http"
 	"regexp"
-	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/brianvoe/gofakeit/v7"
+	"github.com/docker/docker/api/types/container"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// errAlreadyInProgress is a regular expression that matches the error for a container
-// removal that is already in progress.
-var errAlreadyInProgress = regexp.MustCompile(`removal of container .* is already in progress`)
+var (
+	// errAlreadyInProgress is a regular expression that matches the error for a container
+	// removal that is already in progress.
+	errAlreadyInProgress = regexp.MustCompile(`removal of container .* is already in progress`)
+	// errAlreadyTerminated is a regular expression that matches the error for a container
+	// removal that is already done. Mainly affects Podman.
+	errAlreadyTerminated = regexp.MustCompile(`no container with ID or name .* found: no such container`)
+)
 
 func prepare(tb testing.TB) {
 	tb.Helper()
@@ -63,7 +67,7 @@ func prepareClient(
 	opts = append(
 		[]Option{
 			WithLogger(slog.New(newLogger(tb, nil))),
-			WithHttpClient(http.DefaultClient),
+			WithHTTPClient(http.DefaultClient),
 			WithTimeout(defaultTimeout),
 			WithReadLimit(defaultReadLimit),
 		},
@@ -101,7 +105,6 @@ func prepareDatabase(
 	tb.Helper()
 
 	req := testcontainers.ContainerRequest{
-		Name:  "sdbc_" + toSlug(tb.Name()),
 		Image: "surrealdb/surrealdb:v" + surrealDBVersion,
 		Env: map[string]string{
 			"SURREAL_PATH":   "memory",
@@ -124,7 +127,7 @@ func prepareDatabase(
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: req,
 			Started:          true,
-			Reuse:            true,
+			Reuse:            false,
 			Logger:           &logger{},
 		},
 	)
@@ -142,32 +145,15 @@ func prepareDatabase(
 			if errAlreadyInProgress.MatchString(err.Error()) {
 				return // this "error" is not caught by the Terminate method even though it is safe to ignore
 			}
+			if errAlreadyTerminated.MatchString(err.Error()) {
+				return // Support for podman
+			}
 
 			tb.Fatalf("failed to terminate container: %s", err.Error())
 		}
 	}
 
 	return host, cleanup
-}
-
-func toSlug(input string) string {
-	// Remove special characters
-	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
-	if err != nil {
-		panic(err)
-	}
-	processedString := reg.ReplaceAllString(input, " ")
-
-	// Remove leading and trailing spaces
-	processedString = strings.TrimSpace(processedString)
-
-	// Replace spaces with dashes
-	slug := strings.ReplaceAll(processedString, " ", "-")
-
-	// Convert to lowercase
-	slug = strings.ToLower(slug)
-
-	return slug
 }
 
 type logger struct{}
@@ -313,14 +299,4 @@ func (t *testContext) setErr(err error) {
 	defer t.mu.Unlock()
 
 	t.err = err
-}
-
-//
-// -- HTTP CLIENT
-//
-
-type mockHttpClientWithError struct{}
-
-func (m *mockHttpClientWithError) Do(_ *http.Request) (*http.Response, error) {
-	return nil, errors.New("mock http client error")
 }

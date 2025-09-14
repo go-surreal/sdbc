@@ -1,10 +1,11 @@
 package sdbc
 
 import (
-	"github.com/fxamacker/cbor/v2"
-	"gotest.tools/v3/assert"
 	"testing"
 	"time"
+
+	"github.com/fxamacker/cbor/v2"
+	"gotest.tools/v3/assert"
 )
 
 func TestDuration(t *testing.T) {

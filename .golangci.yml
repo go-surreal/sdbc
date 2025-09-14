@@ -1,11 +1,14 @@
 # GolangCI-Lint config.
 
+version: "2"
+
+
 run:
   timeout: 5m
 
 
 linters:
-  disable-all: true
+  default: none
   enable:
 
     # Check for pass []any as any in variadic func(...any).
@@ -41,6 +44,9 @@ linters:
     # Check for two durations multiplied together.
     - durationcheck
 
+    # Go linter to check the errors handling expressions.
+    - err113
+
     # A program for checking for unchecked errors in go programs.
     # These unchecked errors can be critical bugs in some cases.
     - errcheck
@@ -66,9 +72,6 @@ linters:
     # Finds forced type assertions.
     - forcetypeassert
 
-    # Controls golang package import order and makes it always deterministic.
-    - gci
-
     # Checks that go compiler directive comments (//go:) are valid.
     - gocheckcompilerdirectives
 
@@ -81,15 +84,6 @@ linters:
     # Check if comments conform to certain rules (like ending with a dot).
     - godot
 
-    # Go linter to check the errors handling expressions.
-    - err113
-
-    # Gofmt checks whether code was gofmt-ed.
-    - gofmt
-
-    # Gofumpt checks whether code was gofumpt-ed.
-    - gofumpt
-
     # Manage the use of 'replace', 'retract', and 'excludes' directives in go.mod.
     - gomoddirectives
 
@@ -98,9 +92,6 @@ linters:
 
     # Inspects source code for security problems.
     - gosec
-
-    # Linter for Go source code that specializes in simplifying code.
-    - gosimple
 
     # Vet examines Go source code and reports suspicious constructs, such as
     # Printf calls whose arguments do not align with the format string.
@@ -183,9 +174,6 @@ linters:
     # Detects inappropriate usage of t.Parallel() method in your Go test codes.
     - tparallel
 
-    # Like the front-end of a Go compiler, parses and type-checks Go code.
-    - typecheck
-
     # Remove unnecessary type conversions.
     - unconvert
 
@@ -234,248 +222,262 @@ linters:
     # reassign, testpackage
     #
 
+  settings:
 
-linters-settings:
+    cyclop:
+      max-complexity: 20
+      package-average: 0
 
-  cyclop:
-    max-complexity: 20
-    package-average: 0.0
-    skip-tests: false
-
-  depguard:
-    rules:
-      main:
-        allow:
-          - $gostd
-          - github.com/coder/websocket
-          - github.com/fxamacker/cbor/v2
-        deny:
-          - pkg: github.com/pkg/errors
-            desc: "Use errors (std) instead"
-          - pkg: golang.org/x/net/context
-            desc: "Use context (std) instead"
-          - pkg: "github.com/stretchr/testify"
-            desc: "Use gotest.tools/v3 instead"
-          - pkg: "nhooyr.io/websocket"
-            desc: "Moved to github.com/coder/websocket"
-
-  errcheck:
-    check-type-assertions: true
-    check-blank: false # TODO: activate?
-    disable-default-exclusions: true
-    exclude-functions: []
-
-  exhaustive:
-    check-generated: false
-    default-signifies-exhaustive: true
-    ignore-enum-members: ""
-    package-scope-only: false
-
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(golang.org)
-      - prefix(go.wohnparc.dev)
-    skip-generated: true
-
-  goconst:
-    min-len: 3
-    min-occurrences: 4 # TODO: go back to 3!
-    ignore-tests: true
-    match-constant: true
-    numbers: true
-    min: 3
-    max: 3
-    ignore-calls: true
-
-  godot:
-    scope: declarations
-    exclude: []
-    period: true
-    capital: false
-
-  gofmt:
-    simplify: true
-
-  goimports:
-    local-prefixes: ""
-
-  gomoddirectives:
-    replace-local: true
-    replace-allow-list:
-      - go.wohnparc.dev
-    retract-allow-no-explanation: false
-    exclude-forbidden: false
-
-  gosec:
-    includes: []
-    excludes: []
-    exclude-generated: false
-    severity: low
-    confidence: low
-
-  gosimple:
-    checks: ["*"]
-
-  govet:
-    disable-all: false
-    enable: []
-    enable-all: false
-    disable: []
-
-  grouper:
-    # Require the use of a single global 'const' declaration only.
-    # Default: false
-    const-require-single-const: false
-    # Require the use of grouped global 'const' declarations.
-    # Default: false
-    const-require-grouping: true
-    # Require the use of a single 'import' declaration only.
-    # Default: false
-    import-require-single-import: true
-    # Require the use of grouped 'import' declarations.
-    # Default: false
-    import-require-grouping: true
-    # Require the use of a single global 'type' declaration only.
-    # Default: false
-    type-require-single-type: false
-    # Require the use of grouped global 'type' declarations.
-    # Default: false
-    type-require-grouping: false
-    # Require the use of a single global 'var' declaration only.
-    # Default: false
-    var-require-single-var: false
-    # Require the use of grouped global 'var' declarations.
-    # Default: false
-    var-require-grouping: false
-
-  misspell:
-    ignore-words: []
-
-  nakedret:
-    max-func-lines: 30
-
-  nestif:
-    min-complexity: 5
-
-  nilnil:
-    checked-types:
-      - ptr
-      - func
-      - iface
-      - map
-      - chan
-
-  nolintlint:
-    allow-unused: false
-    allow-no-explanation: []
-    require-explanation: true
-    require-specific: true
-
-  predeclared:
-    ignore: ""
-    q: false
-
-  revive:
-    # Maximum number of open files at the same time.
-    # See https://github.com/mgechev/revive#command-line-flags
-    # Defaults to unlimited.
-    max-open-files: 2048
-    # When set to false, ignores files with "GENERATED" header, similar to golint.
-    # See https://github.com/mgechev/revive#available-rules for details.
-    # Default: false
-    ignore-generated-header: true
-    # Sets the default severity.
-    # See https://github.com/mgechev/revive#configuration
-    # Default: warning
-    severity: error
-    # Enable all available rules.
-    # Default: false
-    enable-all-rules: false
-    # Sets the default failure confidence.
-    # This means that linting errors with less than 0.8 confidence will be ignored.
-    # Default: 0.8
-    confidence: 0.5
-    rules:
-      - name: add-constant
-        arguments:
-          - maxLitCount: "3"
-            allowStrs: '""'
-            allowInts: "0,1,-1"
-            allowFloats: "0.0"
-            ignoreFuncs: "fmt\\.Errorf"
-      - name: line-length-limit
-        arguments: [ 120 ]
-
-  staticcheck:
-    checks: ["*"]
-
-  tagliatelle:
-    case:
-      use-field-name: true
+    depguard:
       rules:
-        bson: snake
-        json: snake
-        mapstructure: snake
-        xml: camel
-        yaml: snake
+        main:
+          files:
+            - "!**/*_test\\.go"
+          allow:
+            - $gostd
+            - github.com/coder/websocket
+            - github.com/fxamacker/cbor/v2
+          deny:
+            - pkg: github.com/pkg/errors
+              desc: "Use errors (std) instead"
+            - pkg: golang.org/x/net/context
+              desc: "Use context (std) instead"
+            - pkg: "github.com/stretchr/testify"
+              desc: "Use gotest.tools/v3 instead"
+            - pkg: "nhooyr.io/websocket"
+              desc: "Moved to github.com/coder/websocket"
 
-  unparam:
-    check-exported: false
+    errcheck:
+      check-type-assertions: true
+      check-blank: false # TODO: activate?
+      disable-default-exclusions: true
 
-  varnamelen:
-    max-distance: 5
-    min-name-length: 3
-    check-receiver: false
-    check-return: false
-    check-type-param: false
-    ignore-type-assert-ok: true
-    ignore-map-index-ok: true
-    ignore-chan-recv-ok: true
-    ignore-names:
-      - err
-      - ok
-      - id
-      - fn
-      - to
-      - os
-      - wg
-    ignore-decls:
-      - wg sync.WaitGroup
-      - t T
+    exhaustive:
+      default-signifies-exhaustive: true
+      ignore-enum-members: ""
+      package-scope-only: false
 
-  wrapcheck:
-    ignoreSigs:
-      - .Errorf(
-      - errors.New(
-      - errors.Unwrap(
-      - .Wrap(
-      - .Wrapf(
-      - .WithMessage(
-      - .WithMessagef(
-      - .WithStack(
-    ignoreSigRegexps: []
-    ignorePackageGlobs: []
-    ignoreInterfaceRegexps: []
+    goconst:
+      min-len: 3
+      min-occurrences: 4 # TODO: go back to 3!
+      match-constant: true
+      numbers: true
+      min: 3
+      max: 3
+      ignore-calls: true
 
-  wsl:
-    allow-assign-and-anything: false
-    allow-assign-and-call: true
-    allow-cuddle-declarations: false
-    allow-multiline-assign: true
-    allow-separated-leading-comment: false
-    allow-trailing-comment: false
-    force-case-trailing-whitespace: 0
-    force-err-cuddling: true
-    force-short-decl-cuddling: true
-    strict-append: true
+    godot:
+      scope: declarations
+      period: true
+      capital: false
+
+    gomoddirectives:
+      replace-local: true
+      retract-allow-no-explanation: false
+      exclude-forbidden: false
+
+    gosec:
+      severity: low
+      confidence: low
+
+    govet:
+      enable-all: false
+      disable-all: false
+
+    grouper:
+      # Require the use of a single global 'const' declaration only.
+      # Default: false
+      const-require-single-const: false
+      # Require the use of grouped global 'const' declarations.
+      # Default: false
+      const-require-grouping: true
+      # Require the use of a single 'import' declaration only.
+      # Default: false
+      import-require-single-import: true
+      # Require the use of grouped 'import' declarations.
+      # Default: false
+      import-require-grouping: true
+      # Require the use of a single global 'type' declaration only.
+      # Default: false
+      type-require-single-type: false
+      # Require the use of grouped global 'type' declarations.
+      # Default: false
+      type-require-grouping: false
+      # Require the use of a single global 'var' declaration only.
+      # Default: false
+      var-require-single-var: false
+      # Require the use of grouped global 'var' declarations.
+      # Default: false
+      var-require-grouping: false
+
+    nakedret:
+      max-func-lines: 30
+
+    nestif:
+      min-complexity: 5
+
+    nilnil:
+      checked-types:
+        - ptr
+        - func
+        - iface
+        - map
+        - chan
+
+    nlreturn:
+      # Size of the block (including return statement that is still "OK")
+      # so no return split required.
+      block-size: 3
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+
+    predeclared:
+      qualified-name: false
+
+    revive:
+      # Maximum number of open files at the same time.
+      # See https://github.com/mgechev/revive#command-line-flags
+      # Defaults to unlimited.
+      max-open-files: 2048
+      # Sets the default severity.
+      # See https://github.com/mgechev/revive#configuration
+      # Default: warning
+      severity: error
+      # Enable all available rules.
+      # Default: false
+      enable-all-rules: false
+      # Sets the default failure confidence.
+      # This means that linting errors with less than 0.8 confidence will be ignored.
+      # Default: 0.8
+      confidence: 0.5
+      rules:
+        - name: add-constant
+          arguments:
+            - maxLitCount: "3"
+              allowStrs: '""'
+              allowInts: "0,1,-1"
+              allowFloats: "0.0"
+              ignoreFuncs: "fmt\\.Errorf"
+        - name: line-length-limit
+          arguments: [ 120 ]
+
+    staticcheck:
+      checks: ["*"]
+
+    tagliatelle:
+      case:
+        use-field-name: true
+        rules:
+          bson: snake
+          json: snake
+          mapstructure: snake
+          xml: camel
+          yaml: snake
+
+    unparam:
+      check-exported: false
+
+    varnamelen:
+      max-distance: 10
+      min-name-length: 3
+      check-receiver: false
+      check-return: false
+      check-type-param: false
+      ignore-type-assert-ok: true
+      ignore-map-index-ok: true
+      ignore-chan-recv-ok: true
+      ignore-names:
+        - err
+        - ok
+        - id
+        - fn
+        - to
+        - os
+        - wg
+        - i
+      ignore-decls:
+        - wg sync.WaitGroup
+        - t T
+
+    wrapcheck:
+      ignore-sigs:
+        - .Errorf(
+        - errors.New(
+        - errors.Unwrap(
+        - .Wrap(
+        - .Wrapf(
+        - .WithMessage(
+        - .WithMessagef(
+        - .WithStack(
+
+    wsl:
+      allow-assign-and-anything: false
+      allow-assign-and-call: true
+      allow-cuddle-declarations: false
+      allow-multiline-assign: true
+      allow-separated-leading-comment: false
+      allow-trailing-comment: false
+      force-case-trailing-whitespace: 0
+      force-err-cuddling: true
+      force-short-decl-cuddling: true
+      strict-append: true
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - goconst
+        path: (.+)_test\.go
+    paths:
+      - .*_test\.go
+      - third_party$
+      - builtin$
+      - examples$
 
 
 issues:
-  exclude-files:
-    - ".*_test\\.go"
   max-issues-per-linter: 0
   max-same-issues: 0
   new: false
   fix: true
+
+
+formatters:
+  enable:
+
+    # Controls golang package import order and makes it always deterministic.
+    - gci
+
+    # Gofmt checks whether code was gofmt-ed.
+    - gofmt
+
+    # Gofumpt checks whether code was gofumpt-ed.
+    - gofumpt
+
+  settings:
+
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(golang.org)
+        - prefix(github.com/go-surreal/sdbc)
+
+    gofmt:
+      simplify: true
+
+  exclusions:
+    generated: lax
+    paths:
+      - .*_test\.go
+      - third_party$
+      - builtin$
+      - examples$

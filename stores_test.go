@@ -2,9 +2,12 @@ package sdbc
 
 import (
 	"bytes"
-	"gotest.tools/v3/assert"
+	"math/rand/v2"
+	"sync"
 	"testing"
 	"time"
+
+	"gotest.tools/v3/assert"
 )
 
 func TestStoresGetInvalidAssert(t *testing.T) {
@@ -12,9 +15,9 @@ func TestStoresGetInvalidAssert(t *testing.T) {
 
 	var pool bufPool
 
-	pool.Pool.Put("invalid type")
+	pool.syncPool.Put("invalid type")
 
-	res := pool.Get()
+	res := pool.get()
 
 	assert.Check(t, res != nil)
 	assert.Check(t, bytes.Equal(res.Bytes(), []byte{}))
@@ -23,21 +26,9 @@ func TestStoresGetInvalidAssert(t *testing.T) {
 func TestRequestsUnknownKey(t *testing.T) {
 	t.Parallel()
 
-	var req requests
+	var req *requests = newRequests()
 
 	_, ok := req.get("unknown key")
-
-	assert.Check(t, !ok)
-}
-
-func TestRequestsInvalidTypeCast(t *testing.T) {
-	t.Parallel()
-
-	var req requests
-
-	req.store.Store("some_key", "invalid value")
-
-	_, ok := req.get("some_key")
 
 	assert.Check(t, !ok)
 }
@@ -45,10 +36,10 @@ func TestRequestsInvalidTypeCast(t *testing.T) {
 func TestRequestsReset(t *testing.T) {
 	t.Parallel()
 
-	var req requests
+	var req *requests = newRequests()
 
 	req.prepare()
-	req.store.Store("some_key", "invalid value")
+	req.prepare()
 
 	assert.Equal(t, 2, req.len())
 
@@ -63,20 +54,16 @@ func TestRequestsReset(t *testing.T) {
 func TestLiveQueriesGetErrorCases(t *testing.T) {
 	t.Parallel()
 
-	var lq liveQueries
+	var lq *liveQueries = newLiveQueries()
 
 	_, ok := lq.get("unknown_key", false)
-	assert.Check(t, !ok)
-
-	lq.store.Store("some_key", "invalid value")
-	_, ok = lq.get("some_key", false)
 	assert.Check(t, !ok)
 }
 
 func TestLiveQueriesDel(t *testing.T) {
 	t.Parallel()
 
-	var lq liveQueries
+	var lq = newLiveQueries()
 
 	ch, ok := lq.get("some_key", true)
 	assert.Check(t, ok)
@@ -88,4 +75,142 @@ func TestLiveQueriesDel(t *testing.T) {
 	case <-time.After(1 * time.Second):
 		t.Fatal("channel not closed")
 	}
+}
+
+func TestNewRandBytes(t *testing.T) {
+	t.Parallel()
+	// Basic test to ensure that newRandBytes doesn't panic.
+	_ = newRandBytes()
+}
+
+func TestRandBytes_Read(t *testing.T) {
+	rb := newRandBytes()
+
+	t.Run("Full Uint64s", func(t *testing.T) {
+		t.Parallel()
+
+		origBytes := make([]byte, 16)
+		b := make([]byte, len(origBytes))
+		copy(b, origBytes)
+
+		rb.read(b)
+
+		assert.Check(t,
+			!bytes.Equal(b, origBytes),
+			"Bytes were not modified",
+		)
+	})
+
+	t.Run("Partial Uint64", func(t *testing.T) {
+		t.Parallel()
+
+		origBytes := make([]byte, 5)
+		b := make([]byte, len(origBytes))
+		copy(b, origBytes)
+
+		rb.read(b)
+
+		assert.Check(t,
+			!bytes.Equal(b, origBytes),
+			"Bytes were not modified",
+		)
+	})
+
+	t.Run("Zero Length", func(t *testing.T) {
+		t.Parallel()
+
+		b := make([]byte, 0)
+
+		rb.read(b) // Should not panic
+
+		assert.Check(t,
+			len(b) == 0,
+			"Length of bytes should be 0, but is %d", len(b),
+		)
+	})
+
+	t.Run("Multiple Reads", func(t *testing.T) {
+		t.Parallel()
+
+		numBytes := rand.Uint32N(256) + 1
+
+		bytes1 := make([]byte, numBytes)
+		bytes2 := make([]byte, numBytes)
+		rb.read(bytes1)
+		rb.read(bytes2)
+		// Check if the two byte slices are different.
+		// This doesn't guarantee randomness, but it does ensure the generator is advancing.
+		assert.Check(t,
+			!bytes.Equal(bytes1, bytes2),
+			"Multiple reads returned the same bytes",
+		)
+	})
+
+	t.Run("Large Read", func(t *testing.T) {
+		t.Parallel()
+
+		origBytes := make([]byte, 1024)
+		b := make([]byte, len(origBytes))
+		copy(b, origBytes)
+
+		rb.read(b)
+
+		assert.Check(t,
+			!bytes.Equal(b, origBytes),
+			"Bytes were not modified",
+		)
+	})
+
+	t.Run("Concurrency", func(t *testing.T) {
+		t.Parallel()
+
+		const numGoRoutines = 24
+		wg := sync.WaitGroup{}
+		for range numGoRoutines {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				origBytes := make([]byte, rand.Uint32N(256)+1)
+				origLen := len(origBytes)
+				origCap := cap(origBytes)
+
+				b := make([]byte, origLen)
+				copy(b, origBytes)
+
+				rb.read(b)
+
+				assert.Equal(t, len(b), origLen)
+				assert.Equal(t, cap(b), origCap)
+				assert.Check(t,
+					!bytes.Equal(b, origBytes),
+					"Bytes were not modified",
+				)
+			}()
+		}
+		wg.Wait()
+	})
+}
+
+func TestRandBytes_Base62Str(t *testing.T) {
+	rb := newRandBytes()
+
+	t.Run("Concurrency", func(t *testing.T) {
+		t.Parallel()
+
+		const numGoRoutines = 24
+		wg := sync.WaitGroup{}
+		for range numGoRoutines {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				strLen := int(rand.Int32N(256) + 1)
+				str := rb.base62Str(strLen)
+
+				assert.Equal(t, len(str), strLen)
+			}()
+		}
+		wg.Wait()
+	})
 }

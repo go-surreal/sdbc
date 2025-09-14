@@ -16,6 +16,17 @@ import (
 )
 
 const (
+	CborMinNestedLevels = 4
+	CborMaxNestedLevels = 65535
+
+	CborMinArrayElements = 16
+	CborMaxArrayElements = 2147483647
+
+	CborMinMapPairs = 16
+	CborMaxMapPairs = 2147483647
+)
+
+const (
 	schemeWS  = "ws"
 	schemeWSS = "wss"
 
@@ -49,8 +60,8 @@ type Client struct {
 	waitGroup sync.WaitGroup
 
 	buffers     bufPool
-	requests    requests
-	liveQueries liveQueries
+	requests    *requests
+	liveQueries *liveQueries
 }
 
 // Config is the configuration for the client.
@@ -75,6 +86,19 @@ type Config struct {
 	// Database is the database to use.
 	// It will automatically be created if it does not exist.
 	Database string
+
+	// CborMaxNestedLevels specifies the max nested levels allowed for any combination of CBOR array, maps, and tags.
+	// Default is 32 levels, minimum is 4, maximum is 65535. Note that higher maximum levels of nesting can
+	// require larger amounts of stack to deserialize. Don't increase this higher than you require.
+	CborMaxNestedLevels int
+
+	// CborMaxArrayElements specifies the max number of elements for CBOR arrays.
+	// Default is 128*1024=131072, minimum is 16, maximum is 2147483647.
+	CborMaxArrayElements int
+
+	// CborMaxMapPairs specifies the max number of key-value pairs for CBOR maps.
+	// Default is 128*1024=131072, minimum is 16, maximum is 2147483647.
+	CborMaxMapPairs int
 }
 
 // NewClient creates a new client and connects to
@@ -85,21 +109,35 @@ func NewClient(ctx context.Context, conf Config, opts ...Option) (*Client, error
 		conf:    conf,
 	}
 
+	encOpts := cbor.EncOptions{}
+
+	decOpts := cbor.DecOptions{
+		MaxNestedLevels:   conf.CborMaxNestedLevels,
+		MaxArrayElements:  conf.CborMaxArrayElements,
+		MaxMapPairs:       conf.CborMaxMapPairs,
+		DupMapKey:         cbor.DupMapKeyQuiet,    // let the database handle that
+		ExtraReturnErrors: cbor.ExtraDecErrorNone, // ignore missing fields (currently required)
+		UTF8:              cbor.UTF8RejectInvalid, // reject invalid UTF-8
+	}
+
 	encTags := cbor.NewTagSet()
 	decTags := cbor.NewTagSet()
 
-	enc, err := cbor.EncOptions{}.EncModeWithTags(encTags)
+	enc, err := encOpts.EncModeWithTags(encTags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cbor encoder: %w", err)
 	}
 
-	dec, err := cbor.DecOptions{}.DecModeWithTags(decTags)
+	dec, err := decOpts.DecModeWithTags(decTags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cbor decoder: %w", err)
 	}
 
 	client.marshal = enc.Marshal
 	client.unmarshal = dec.Unmarshal
+
+	client.requests = newRequests()
+	client.liveQueries = newLiveQueries()
 
 	client.connCtx, client.connCancel = context.WithCancel(ctx)
 
@@ -144,7 +182,7 @@ func (c *Client) openWebsocket() error {
 		return fmt.Errorf("failed to open websocket connection: %w", err)
 	}
 
-	conn.SetReadLimit(c.options.readLimit)
+	conn.SetReadLimit(c.readLimit)
 
 	c.conn = conn
 

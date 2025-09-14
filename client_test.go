@@ -3,13 +3,14 @@ package sdbc
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/brianvoe/gofakeit/v7"
 	"gotest.tools/v3/assert"
-	"testing"
 )
 
 const (
-	surrealDBVersion    = "2.1.4"
+	surrealDBVersion    = "2.3.7"
 	containerStartedMsg = "Started web server on "
 )
 

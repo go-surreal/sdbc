@@ -16,7 +16,7 @@ type options struct {
 	timeout    time.Duration
 	logger     *slog.Logger
 	readLimit  int64
-	httpClient HttpClient
+	httpClient HTTPClient
 }
 
 type Option func(*options)
@@ -45,15 +45,15 @@ func WithReadLimit(limit int64) Option {
 	}
 }
 
-// WithHttpClient sets a custom http client.
+// WithHTTPClient sets a custom http client.
 // If not set, the default http client is used.
-func WithHttpClient(client HttpClient) Option {
+func WithHTTPClient(client HTTPClient) Option {
 	return func(c *options) {
 		c.httpClient = client
 	}
 }
 
-type HttpClient interface {
+type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
