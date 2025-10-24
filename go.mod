@@ -5,12 +5,12 @@ go 1.23.7
 retract [v0.1.0, v0.7.99] // only the latest version is supported
 
 require (
-	github.com/brianvoe/gofakeit/v7 v7.6.0
+	github.com/brianvoe/gofakeit/v7 v7.8.1
 	github.com/coder/websocket v1.8.14
-	github.com/docker/docker v28.3.3+incompatible
+	github.com/docker/docker v28.5.1+incompatible
 	github.com/fxamacker/cbor/v2 v2.9.0
 	github.com/google/go-cmp v0.7.0
-	github.com/testcontainers/testcontainers-go v0.38.0
+	github.com/testcontainers/testcontainers-go v0.39.0
 	gotest.tools/v3 v3.5.2
 )
 
